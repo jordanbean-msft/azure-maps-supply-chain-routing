@@ -1,6 +1,7 @@
 from typing import Literal, Self
+from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import AnyUrl, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,10 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     azure_environment: str = "development"
     app_mode: Literal["demo", "live"] = "demo"
+    auth_enabled: bool = False
+    entra_tenant_id: UUID | None = None
+    entra_client_id: UUID | None = None
+    entra_api_scope: str | None = None
     azure_client_id: str | None = None
     azure_maps_client_id: str | None = None
     azure_maps_endpoint: str = "https://atlas.microsoft.com"
@@ -36,6 +41,27 @@ class Settings(BaseSettings):
     max_request_bytes: int = Field(default=65536, ge=1024, le=131072)
     maps_cache_seconds: int = Field(default=300, ge=0, le=3600)
     max_memory_documents: int = Field(default=1000, ge=10, le=10000)
+
+    @model_validator(mode="after")
+    def authentication_configuration(self) -> Self:
+        if self.auth_enabled and not (
+            self.entra_tenant_id and self.entra_client_id and self.entra_api_scope
+        ):
+            raise ValueError("Enabled authentication requires tenant ID, client ID and API scope.")
+        if self.entra_api_scope is not None:
+            scope = AnyUrl(self.entra_api_scope)
+            if (
+                scope.scheme not in {"api", "https"}
+                or not scope.host
+                or scope.username is not None
+                or scope.password is not None
+                or scope.query
+                or scope.fragment
+                or not (scope.path or "").rsplit("/", 1)[-1]
+                or any(character.isspace() for character in self.entra_api_scope)
+            ):
+                raise ValueError("ENTRA_API_SCOPE must be a fully qualified delegated scope URI.")
+        return self
 
     @model_validator(mode="after")
     def retention_covers_worker_lease(self) -> Self:

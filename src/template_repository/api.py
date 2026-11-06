@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from template_repository.errors import ServiceError
 from template_repository.models.app_config import AppConfig
+from template_repository.models.auth_config import AuthConfig
 from template_repository.models.disruption import Disruption
 from template_repository.models.geocode_request import GeocodeRequest
 from template_repository.models.geocode_result import GeocodeResult
@@ -38,6 +39,17 @@ def _etag(value: str | None) -> str:
 
 def create_router(runtime: Runtime) -> APIRouter:
     router = APIRouter()
+
+    @router.get("/api/auth/config")
+    async def auth_config(response: Response) -> AuthConfig:
+        settings = runtime.settings
+        response.headers["Cache-Control"] = "no-store"
+        return AuthConfig(
+            enabled=settings.auth_enabled,
+            tenant_id=str(settings.entra_tenant_id) if settings.entra_tenant_id else None,
+            client_id=str(settings.entra_client_id) if settings.entra_client_id else None,
+            scope=settings.entra_api_scope,
+        )
 
     @router.get("/health")
     @router.get("/health/live")

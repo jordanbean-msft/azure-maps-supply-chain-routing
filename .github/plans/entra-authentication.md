@@ -5,7 +5,9 @@ delegated tokens; Azure workload identities remain independent of user identity.
 All signed-in tenant users share the bounded demo scenarios, as before.
 
 - [x] Inspect deployment context and define shared authentication contract.
-- [ ] Backend (auth-api worktree): `src/`, Python manifests/lock and Python tests.
+- [x] Backend (auth-api worktree): `src/`, Python manifests/lock and Python tests.
+  Completed on `copilot/entra-api`: focused auth/config tests (75), full warning-free
+  suite (180), Ruff format/check and mypy passed with frozen dependencies.
   Add `GET /api/auth/config` returning `enabled`, `tenant_id`, `client_id`, `scope`.
   Protect other `/api` endpoints when `AUTH_ENABLED=true`; health stays public.
   Settings: `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_API_SCOPE`.

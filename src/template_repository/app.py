@@ -3,14 +3,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from http import HTTPStatus
 
+import httpx
 from azure.core.exceptions import AzureError
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.exceptions import HTTPException
 
 from template_repository.api import create_router
+from template_repository.auth.dependency import require_authentication
+from template_repository.auth.entra import EntraTokenVerifier
+from template_repository.auth.jwks import JwksCache
+from template_repository.auth.verifier import TokenVerifier
 from template_repository.config import Settings, get_settings
 from template_repository.errors import ServiceError
 from template_repository.logging_config import configure_logging
@@ -29,9 +34,17 @@ def create_app(
     *,
     repository: Repository | None = None,
     routing: RoutingProvider | None = None,
+    token_verifier: TokenVerifier | None = None,
 ) -> FastAPI:
     configuration = settings or get_settings()
     runtime = Runtime(configuration, repository, routing)
+    auth_client = (
+        httpx.AsyncClient() if configuration.auth_enabled and token_verifier is None else None
+    )
+    if auth_client is not None:
+        token_verifier = EntraTokenVerifier(
+            configuration, JwksCache(auth_client, str(configuration.entra_tenant_id))
+        )
     missing_live_settings = (
         configuration.app_mode == "live"
         and not runtime.injected
@@ -52,12 +65,17 @@ def create_app(
                     raise
             yield
         finally:
-            await runtime.close()
-            logger.info("application_shutdown")
+            try:
+                await runtime.close()
+            finally:
+                if auth_client is not None:
+                    await auth_client.aclose()
+                logger.info("application_shutdown")
 
     application = FastAPI(
         title="Supply Chain Routing",
         lifespan=lifespan,
+        dependencies=[Depends(require_authentication)],
         responses={
             status: {
                 "description": HTTPStatus(status).phrase,
@@ -65,11 +83,12 @@ def create_app(
                     "application/problem+json": {"schema": ProblemDetails.model_json_schema()}
                 },
             }
-            for status in (403, 404, 409, 412, 413, 422, 428, 429, 500, 503)
+            for status in (401, 403, 404, 409, 412, 413, 422, 428, 429, 500, 503)
         },
     )
     application.state.settings = configuration
     application.state.runtime = runtime
+    application.state.token_verifier = token_verifier
     application.add_middleware(GuardMiddleware, settings=configuration)
     application.include_router(create_router(runtime))
 
@@ -102,7 +121,10 @@ def create_app(
 
     @application.exception_handler(HTTPException)
     async def http_error(request: Request, error: HTTPException) -> JSONResponse:
-        return problem(request, error.status_code, str(error.detail))
+        response = problem(request, error.status_code, str(error.detail))
+        if error.headers:
+            response.headers.update(error.headers)
+        return response
 
     @application.exception_handler(Exception)
     async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
