@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from azure.core.credentials import AccessToken
+from azure.core.exceptions import AzureError
 
 from template_repository.app import create_app
 from template_repository.config import Settings
@@ -67,6 +68,39 @@ async def test_missing_live_settings_remains_unready_with_lifespan() -> None:
         assert (await client.post("/api/scenarios/seed")).status_code == 503
         token = await client.get("/api/maps/token")
         assert token.status_code == 503 and token.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ServiceError(503, "startup unavailable"),
+        AzureError("startup unavailable"),
+        TimeoutError("startup unavailable"),
+    ],
+)
+async def test_configured_live_startup_failure_aborts_lifespan_and_closes_resources(
+    error: Exception,
+) -> None:
+    application = create_app(
+        Settings(
+            _env_file=None,
+            app_mode="live",
+            azure_maps_client_id="maps-account",
+            cosmos_endpoint="https://test.documents.azure.com",
+        )
+    )
+    runtime = application.state.runtime
+    with (
+        patch.object(runtime, "start", side_effect=error) as start,
+        patch.object(runtime, "close", wraps=runtime.close) as close,
+        pytest.raises(type(error), match="startup unavailable") as caught,
+    ):
+        async with application.router.lifespan_context(application):
+            pytest.fail("A failed configured startup must not begin serving requests.")
+    assert caught.value is error
+    start.assert_awaited_once()
+    close.assert_awaited_once()
+    assert not runtime.initialized
 
 
 async def test_live_initialization_managed_identity_clients_and_resource_cleanup() -> None:

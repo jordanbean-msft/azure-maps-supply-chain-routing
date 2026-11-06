@@ -32,6 +32,11 @@ def create_app(
 ) -> FastAPI:
     configuration = settings or get_settings()
     runtime = Runtime(configuration, repository, routing)
+    missing_live_settings = (
+        configuration.app_mode == "live"
+        and not runtime.injected
+        and (not configuration.cosmos_endpoint or not configuration.azure_maps_client_id)
+    )
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -43,6 +48,8 @@ def create_app(
                 await runtime.start()
             except (ServiceError, AzureError, TimeoutError):
                 logger.exception("live_initialization_failed")
+                if not missing_live_settings:
+                    raise
             yield
         finally:
             await runtime.close()
