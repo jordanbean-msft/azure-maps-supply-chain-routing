@@ -1,8 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 
-name: template-repository
-metadata:
-  template: template-repository@0.0.1
+name: supply-chain-routing
 
 infra:
   provider: terraform
@@ -15,3 +13,17 @@ infra:
   # before azd provision.
 
 services:
+  api:
+    project: .
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+  web:
+    project: ./frontend
+    language: js
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .

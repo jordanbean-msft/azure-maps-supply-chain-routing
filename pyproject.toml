@@ -1,7 +1,7 @@
 [project]
-name = "template-repository"
+name = "supply-chain-routing"
 version = "0.1.0"
-description = ""
+description = "Azure Maps supply-chain lane planning demo"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,6 +23,7 @@ dev = [
 ]
 
 [project.scripts]
+supply-chain-routing = "template_repository.main:main"
 template-repository = "template_repository.main:main"
 
 [tool.ruff]
@@ -45,9 +46,6 @@ ignore_missing_imports = true
 addopts = "-q --import-mode=importlib"
 asyncio_mode = "auto"
 testpaths = ["tests"]
-filterwarnings = [
-  "ignore::DeprecationWarning",
-]
 
 [tool.coverage.run]
 source = ["src/template_repository"]

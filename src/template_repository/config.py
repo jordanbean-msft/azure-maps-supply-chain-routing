@@ -1,23 +1,27 @@
-import logging
-import os
+from typing import Literal
 
-from pydantic_settings import BaseSettings
-
-logger = logging.getLogger(__name__)
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Centralized runtime settings; demo mode requires no Azure credentials."""
 
-    log_level: str = "INFO"
-    port: int = 8000
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    port: int = Field(default=8000, ge=1, le=65535)
     host: str = "0.0.0.0"
-
-    # Environment detection for authentication strategy
-    # Set to "development" for local dev, anything else uses ManagedIdentityCredential
-    azure_environment: str = os.getenv("AZURE_ENVIRONMENT", "development")
-
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    azure_environment: str = "development"
+    app_mode: Literal["demo", "live"] = "demo"
+    azure_client_id: str | None = None
+    azure_maps_client_id: str | None = None
+    azure_maps_endpoint: str = "https://atlas.microsoft.com"
+    cosmos_endpoint: str | None = None
+    cosmos_database: str = "supply-chain-routing"
+    cosmos_container: str = "scenarios"
+    snapshot_ttl_seconds: int = Field(default=3600, ge=60)
+    scenario_ttl_seconds: int = Field(default=86400, ge=60)
 
 
 def get_settings() -> Settings:

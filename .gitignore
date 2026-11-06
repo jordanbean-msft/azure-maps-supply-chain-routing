@@ -35,9 +35,14 @@ coverage.xml
 
 # Azure Developer CLI
 .azure/
+!.azure/
+.azure/*
+!.azure/deployment-plan.md
 
 # Node.js (if frontend added later)
 node_modules/
+frontend/coverage/
+.cache/
 
 # Terraform
 infra/.terraform/

@@ -9,7 +9,7 @@ def main() -> None:
         "template_repository.app:app",
         host=settings.host,
         port=settings.port,
-        reload=True,
+        reload=settings.azure_environment == "development",
     )
 
 

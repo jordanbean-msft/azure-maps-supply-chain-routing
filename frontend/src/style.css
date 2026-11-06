@@ -1,0 +1,26 @@
+:root {
+    font-family: system-ui, sans-serif;
+    color: #172b4d;
+    background: #f4f7fb;
+}
+
+body {
+    margin: 0;
+}
+
+main {
+    max-width: 64rem;
+    margin: 4rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 0.75rem;
+}
+
+[role="status"] {
+    padding: 1rem;
+    background: #e8f3ff;
+}
+
+[role="alert"] {
+    color: #a4262c;
+}

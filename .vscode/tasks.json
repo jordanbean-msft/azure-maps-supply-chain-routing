@@ -1,0 +1,259 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "sync-venv",
+      "type": "shell",
+      "command": "uv sync --extra dev",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "uv build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "lint",
+      "type": "shell",
+      "command": "uv run ruff check .",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "lint-fix",
+      "type": "shell",
+      "command": "uv run ruff check . --fix && uv run ruff format .",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "format",
+      "type": "shell",
+      "command": "uv run ruff format .",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "format-check",
+      "type": "shell",
+      "command": "uv run ruff format --check .",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "type-check",
+      "type": "shell",
+      "command": "uv run mypy src/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "uv run pytest",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "test-strict",
+      "type": "shell",
+      "command": "uv run pytest -W error",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "coverage",
+      "type": "shell",
+      "command": "uv run pytest --cov --cov-report=xml --cov-report=term-missing",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "run-api",
+      "type": "shell",
+      "command": "uv run supply-chain-routing",
+      "group": "none",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Uvicorn running on"
+        }
+      }
+    },
+    {
+      "label": "validate",
+      "dependsOn": ["lint", "format-check", "type-check", "test-strict"],
+      "dependsOrder": "sequence",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:setup",
+      "type": "shell",
+      "command": "npm ci",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:dev",
+      "dependsOn": "frontend:setup",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "isBackground": true,
+      "group": "none",
+      "problemMatcher": {
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Local:.*5173"
+        }
+      }
+    },
+    {
+      "label": "frontend:build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:test",
+      "type": "shell",
+      "command": "npm test",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:format",
+      "type": "shell",
+      "command": "npm run format",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:format-check",
+      "type": "shell",
+      "command": "npm run format:check",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend:type-check",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:init",
+      "type": "shell",
+      "command": "terraform -chdir=infra init -backend=false",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:fmt",
+      "type": "shell",
+      "command": "terraform -chdir=infra fmt -check -recursive",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:format",
+      "type": "shell",
+      "command": "terraform -chdir=infra fmt -recursive",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:validate",
+      "type": "shell",
+      "command": "terraform -chdir=infra validate",
+      "dependsOn": "infra:init",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:tflint",
+      "type": "shell",
+      "command": "tflint --recursive",
+      "options": { "cwd": "${workspaceFolder}/infra" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:lint",
+      "dependsOn": ["infra:fmt", "infra:validate", "infra:tflint"],
+      "dependsOrder": "sequence",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "pre-commit-install",
+      "type": "shell",
+      "command": "uv run pre-commit install && uv run pre-commit install --hook-type pre-push",
+      "problemMatcher": []
+    },
+    {
+      "label": "az-login",
+      "type": "shell",
+      "command": "az login",
+      "problemMatcher": []
+    },
+    {
+      "label": "azd-up",
+      "type": "shell",
+      "command": "azd up",
+      "problemMatcher": []
+    },
+    {
+      "label": "azd-deploy",
+      "type": "shell",
+      "command": "azd deploy",
+      "problemMatcher": []
+    },
+    {
+      "label": "pentest:bandit",
+      "type": "shell",
+      "command": "uv run bandit -r src/",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "pentest:pip-audit",
+      "type": "shell",
+      "command": "uv run pip-audit",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "pentest",
+      "dependsOn": ["pentest:bandit", "pentest:pip-audit"],
+      "dependsOrder": "sequence",
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
