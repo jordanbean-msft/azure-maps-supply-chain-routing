@@ -28,6 +28,9 @@ With an unsupported host Node version, prefix commands with
 
 Vite runs on 5173 and proxies `/api` to `http://127.0.0.1:8000`.
 `API_PROXY_TARGET` can override the API origin during development.
+Both Vite and Nginx preserve the browser's original Host header, including its
+port, so same-origin API guards compare against the public web origin rather
+than the internal API address.
 Start the demo API from the repository root with
 `APP_MODE=demo AZURE_ENVIRONMENT=production uv run supply-chain-routing`.
 
