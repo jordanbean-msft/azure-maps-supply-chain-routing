@@ -3,10 +3,13 @@
 A supplier-to-factory lane-planning demo using React/TypeScript and FastAPI,
 targeting Azure Maps, Cosmos DB and Azure Container Apps.
 
-**Foundation scaffold only:** domain contracts, health/config endpoints, and a
-frontend that checks the API are implemented. Scenario editing, routing,
-optimization, persistence and Azure infrastructure are subsequent workstreams.
-See [the approved checklist](.github/plans/supply-chain-routing-demo.md).
+Define suppliers and factories, compare alternative road lanes, allocate
+shipment units within factory capacity, and explore estimated costs under
+traffic, weather, and simulated disruptions.
+
+The local demo requires no Azure credentials. Live mode uses Azure Maps and
+Cosmos DB with managed identities. This is a demonstration, not a dispatch
+system, carrier quotation engine, or production supply-chain optimizer.
 
 ## Local development (no Azure credentials)
 
@@ -28,16 +31,16 @@ npm --prefix frontend run dev
 
 Open http://localhost:5173. Vite proxies `/api` to http://localhost:8000.
 `APP_MODE=demo` explicitly selects simulated routing and in-memory persistence;
-the foundation does not yet execute routes or store scenarios. No live traffic,
-weather or map basemap is claimed. `APP_MODE=live` remains unavailable (readiness
-503) until the Azure service implementations are wired; it never silently falls
-back to simulation.
+restarting the API clears local scenarios. No live traffic, weather, or road
+basemap is claimed in this mode. `APP_MODE=live` requires configured Azure
+services and never silently falls back to simulation.
 
 - `GET /health` and `/health/live`: process liveness.
-- `GET /health/ready`: demo readiness; future live dependency probes.
+- `GET /health/ready`: dependency readiness.
 - `GET /api/config`: mode, routing/map availability and scenario limits.
-- `GET /api/maps/token`: 503 until live authentication is implemented; future
-  response is `{token, client_id, expires_on}` with a timezone-aware ISO timestamp.
+- `GET /api/maps/token`: short-lived live map authorization; unavailable in demo.
+- Scenario CRUD, geocoding, optimization runs, route details, disruptions, and
+  progress events are under `/api/scenarios`.
 - API docs: http://localhost:8000/docs.
 
 Python imports remain `template_repository` and `uv run template-repository`
@@ -71,8 +74,12 @@ packaging, tests, lint, formatting, types and infrastructure validation. The
 existing `.code-workspace` delegates to these rather than duplicating tasks.
 
 React/Vite and its test/lint toolchain are ecosystem dependencies; Microsoft does
-not publish equivalent React build/testing tooling. Backend Azure SDKs and the
-optimizer will be added by their implementation workstreams, not by foundation.
+not publish equivalent React build/testing tooling. The
+optimizer uses OR-Tools because no suitable Microsoft-maintained Python
+constrained-network solver exists. Azure integrations use Microsoft-maintained
+identity/Cosmos libraries, and the map uses Microsoft's Azure Maps Web SDK.
+See [routing research](docs/routing-research.md) for algorithm tradeoffs and
+first-party references.
 
 ## Containers and Azure handoff
 
@@ -88,11 +95,14 @@ path, with buffering disabled and a long read timeout for SSE. Tokens are issued
 server-side only; no service key belongs in frontend environment variables.
 
 `azure.yaml` maps services `api` (root) and `web` (`frontend`) to Container Apps.
-The infrastructure workstream must tag apps with `azd-service-name=api|web`, expose
-only web publicly, configure managed identity/roles, inject runtime environment
-variables, and provision Cosmos with `/scenario_id` as partition key. Existing
-Terraform remains unchanged. Azure CLI, azd and Terraform are needed only for
-later Azure work; **the scaffold is not ready for deployment**.
+Terraform tags apps with `azd-service-name=api|web`, exposes only web publicly,
+configures workload identities/roles, and provisions Cosmos with `/scenario_id`
+as partition key. Azure CLI, azd, Terraform, a pre-created resource group, and
+remote-state storage are required for Azure deployment.
+
+Read [deployment prerequisites](docs/deployment.md) before provisioning. Private
+deployments use existing networking and policy-managed DNS. Public demo
+ingress is not a user-authorization system: enter synthetic data only.
 
 Infrastructure validation (after reviewing existing instructions):
 
@@ -101,6 +111,16 @@ terraform -chdir=infra fmt -check -recursive
 terraform -chdir=infra init -backend=false
 terraform -chdir=infra validate
 ```
+
+## Documentation
+
+- [Architecture and cost model](ARCHITECTURE.md)
+- [Routing/optimization research](docs/routing-research.md)
+- [Local development and walkthrough](docs/local-development.md)
+- [Configuration](docs/configuration-reference.md)
+- [Azure deployment](docs/deployment.md)
+- [Operations, limits, and troubleshooting](docs/operations.md)
+- [Implementation checklist](.github/plans/supply-chain-routing-demo.md)
 
 ## License and disclaimer
 

@@ -59,6 +59,16 @@ The first Playwright install may require OS libraries; CI installs them with
 `--with-deps`. Stop any manually started servers on the test ports before
 running browser tests so the test cannot accidentally reuse a live-mode server.
 
+With the API already running, the bounded smoke script creates a seed scenario,
+optimizes it, verifies shipment conservation and persisted progress events, and
+deletes the scenario:
+
+```bash
+bash scripts/smoke-api.sh http://localhost:8000
+```
+
+It also accepts a deployed web origin; live mode incurs billable Maps calls.
+
 ## Demo walkthrough
 
 1. Load a seed scenario and inspect supplier shipment units and factory capacity.
