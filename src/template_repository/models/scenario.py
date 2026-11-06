@@ -10,7 +10,7 @@ from template_repository.models.truck_profile import TruckProfile
 
 
 class Scenario(DomainModel):
-    id: str = Field(min_length=1, max_length=100)
+    id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     name: str = Field(min_length=1, max_length=100)
     locations: list[Location] = Field(default_factory=list, max_length=13)
     cost_profile: CostProfile = Field(default_factory=CostProfile)
@@ -30,4 +30,9 @@ class Scenario(DomainModel):
         disruption_ids = [disruption.id for disruption in self.disruptions]
         if len(set(disruption_ids)) != len(disruption_ids):
             raise ValueError("Disruption IDs must be unique.")
+        for disruption in self.disruptions:
+            if disruption.location_id and disruption.location_id not in ids:
+                raise ValueError("Disruption location does not exist in this scenario.")
+        if sum(d.kind == "fuel_price" and d.enabled for d in self.disruptions) > 1:
+            raise ValueError("Only one enabled fuel price override is allowed.")
         return self

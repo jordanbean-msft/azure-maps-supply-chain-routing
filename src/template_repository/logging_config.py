@@ -3,6 +3,8 @@ import logging
 import logging.config
 from datetime import UTC, datetime
 
+from template_repository.middleware import request_id_context
+
 
 class JsonFormatter(logging.Formatter):
     """JSON lines to stdout; preserve contextual fields and exception tracebacks."""
@@ -14,7 +16,21 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        for key in ("app_mode", "request_id", "scenario_id", "run_id"):
+        if request_id_context.get():
+            payload["request_id"] = request_id_context.get()
+        for key in (
+            "app_mode",
+            "request_id",
+            "scenario_id",
+            "run_id",
+            "stage",
+            "path",
+            "duration_ms",
+            "method",
+            "status_code",
+            "error",
+            "refreshed_scenarios",
+        ):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
         if record.exc_info:

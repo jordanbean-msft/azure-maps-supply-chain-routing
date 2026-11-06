@@ -15,13 +15,13 @@ class RouteCandidate(DomainModel):
     supplier_id: str
     factory_id: str
     geometry: list[Coordinate] = Field(min_length=2, max_length=10000)
-    distance_km: float = Field(ge=0)
+    distance_km: float = Field(ge=0, le=10000)
     duration_minutes: float = Field(
-        ge=0, description="Travel time including traffic, not weather/simulation."
+        ge=0, le=20160, description="Travel time including traffic, not weather/simulation."
     )
-    traffic_delay_minutes: float = Field(default=0, ge=0)
-    weather_delay_minutes: float = Field(default=0, ge=0)
-    simulated_delay_minutes: float = Field(default=0, ge=0)
-    toll_estimate: float = Field(default=0, ge=0)
+    traffic_delay_minutes: float = Field(default=0, ge=0, le=20160)
+    weather_delay_minutes: float = Field(default=0, ge=0, le=20160)
+    simulated_delay_minutes: float = Field(default=0, ge=0, le=43200)
+    toll_estimate: float = Field(default=0, ge=0, le=10000)
     weather_risk: float = Field(default=0, ge=0, le=1)
     source: Literal["azure_maps", "simulated"]
