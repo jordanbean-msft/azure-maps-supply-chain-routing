@@ -20,6 +20,11 @@ services:
     docker:
       path: ./Dockerfile
       context: .
+    hooks:
+      postdeploy:
+        shell: sh
+        run: ./infra/scripts/deploy-refresh.sh api
+        interactive: false
   web:
     project: ./frontend
     language: js
@@ -27,3 +32,8 @@ services:
     docker:
       path: ./Dockerfile
       context: .
+    hooks:
+      postdeploy:
+        shell: sh
+        run: ../infra/scripts/deploy-refresh.sh web
+        interactive: false

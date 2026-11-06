@@ -4,11 +4,15 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.0"
+      version = "~> 5.13"
     }
     azurecaf = {
       source  = "aztfmod/azurecaf"
-      version = "~> 1.2"
+      version = "~> 2.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.14"
     }
   }
 
@@ -22,8 +26,10 @@ terraform {
 }
 
 provider "azurerm" {
-  subscription_id     = var.azure.subscription_id
-  storage_use_azuread = true
+  subscription_id                 = var.azure.subscription_id
+  tenant_id                       = var.azure.tenant_id
+  storage_use_azuread             = true
+  resource_provider_registrations = "none"
 
   features {
     key_vault {
