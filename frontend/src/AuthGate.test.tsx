@@ -9,6 +9,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuthGate from "./AuthGate";
 import { request } from "./api";
+import { GRAPH_SCOPES } from "./useAccountProfile";
 
 const msal = vi.hoisted(() => ({
     initialize: vi.fn(),
@@ -62,11 +63,21 @@ function discovery(value: unknown = config) {
 
 beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal(
+        "ResizeObserver",
+        class {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        },
+    );
     msal.initialize.mockResolvedValue(undefined);
     msal.handleRedirectPromise.mockResolvedValue(null);
     msal.getAllAccounts.mockReturnValue([]);
-    msal.acquireTokenSilent.mockResolvedValue({
-        accessToken: "test-access-token",
+    msal.acquireTokenSilent.mockImplementation(async ({ scopes }) => {
+        if (scopes.includes(GRAPH_SCOPES[0]))
+            throw new InteractionRequiredAuthError();
+        return { accessToken: "test-access-token" };
     });
     msal.loginRedirect.mockRejectedValue(new Error("cancelled"));
     msal.logoutRedirect.mockRejectedValue(new Error("offline"));
@@ -104,6 +115,7 @@ describe("authentication boundary", () => {
         expect(msal.loginRedirect).toHaveBeenCalledTimes(1);
         expect(msal.loginRedirect).toHaveBeenCalledWith({
             scopes: [config.scope],
+            extraScopesToConsent: GRAPH_SCOPES,
         });
         fireEvent.click(login);
         await waitFor(() =>
@@ -130,6 +142,8 @@ describe("authentication boundary", () => {
             screen.getByRole("button", { name: "Retry sign-in setup" }),
         );
         expect(await screen.findByText("Workspace")).toBeInTheDocument();
+        expect(screen.getByText("Demo workspace")).toBeInTheDocument();
+        expect(screen.getByText("Supply chain routing")).toBeInTheDocument();
         expect(msal.initialize).not.toHaveBeenCalled();
     });
 
@@ -164,7 +178,11 @@ describe("authentication boundary", () => {
         fetch.mockImplementation(async () => new Response("{}"));
         await request("/config");
         await request("/maps/token");
-        expect(msal.acquireTokenSilent).toHaveBeenCalledTimes(2);
+        expect(await screen.findByText("Howdy Demo User!")).toBeInTheDocument();
+        expect(msal.acquireTokenSilent).toHaveBeenCalledTimes(3);
+        expect(
+            msal.acquireTokenSilent.mock.calls.map(([value]) => value.scopes),
+        ).toEqual([GRAPH_SCOPES, [config.scope], [config.scope]]);
         expect(msal.acquireTokenSilent).toHaveBeenCalledWith({
             account,
             scopes: [config.scope],
@@ -201,7 +219,7 @@ describe("authentication boundary", () => {
             "Sign in again",
         );
         await expect(request("/config")).rejects.toThrow("Sign in again");
-        expect(msal.acquireTokenSilent).toHaveBeenCalledTimes(1);
+        expect(msal.acquireTokenSilent).toHaveBeenCalledTimes(2);
         expect(msal.loginRedirect).not.toHaveBeenCalled();
         expect(fetch).toHaveBeenCalledTimes(1);
     });

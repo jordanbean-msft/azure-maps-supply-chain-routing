@@ -1,0 +1,61 @@
+.app-header {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    min-height: 56px;
+    padding: 12px 24px;
+    border-bottom: 1px solid #d1d1d1;
+    background: #fff;
+    color: #242424;
+    font-family: "Segoe UI", "Segoe UI Variable", sans-serif;
+    font-size: 14px;
+}
+
+.app-header .app-header-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.app-header-account {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.app-header .app-header-greeting {
+    overflow-wrap: anywhere;
+}
+
+.auth-gate {
+    box-sizing: border-box;
+    width: min(100%, 560px);
+    margin: 48px auto;
+    padding: 24px;
+    font-family: "Segoe UI", "Segoe UI Variable", sans-serif;
+    font-size: 14px;
+}
+
+.auth-gate-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+    .app-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 16px;
+    }
+
+    .app-header-account {
+        justify-content: flex-start;
+    }
+}

@@ -4,7 +4,15 @@ import {
     type AccountInfo,
 } from "@azure/msal-browser";
 import { useEffect, useState, type ReactNode } from "react";
+import {
+    Button,
+    MessageBar,
+    Spinner,
+    Title3,
+} from "@fluentui/react-components";
+import AccountHeader from "./AccountHeader";
 import { setTokenProvider } from "./auth";
+import { GRAPH_SCOPES } from "./useAccountProfile";
 
 interface AuthConfig {
     enabled: boolean;
@@ -143,7 +151,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setBusy(true);
         setError(null);
         try {
-            await session.client.loginRedirect({ scopes: [session.scope] });
+            await session.client.loginRedirect({
+                scopes: [session.scope],
+                extraScopesToConsent: [...GRAPH_SCOPES],
+            });
         } catch {
             setError("Sign-in could not start. Please retry.");
             setBusy(false);
@@ -176,51 +187,79 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     };
 
     if (loading)
-        return <main aria-busy="true">Loading sign-in configuration…</main>;
-    if (disabled) return children;
+        return (
+            <>
+                <AccountHeader />
+                <main className="auth-gate" aria-busy="true">
+                    <Spinner label="Loading sign-in configuration…" />
+                </main>
+            </>
+        );
+    if (disabled)
+        return (
+            <>
+                <AccountHeader demo />
+                {children}
+            </>
+        );
     if (session?.account)
         return (
             <>
-                <header aria-label="Account">
-                    <span>
-                        Signed in as{" "}
-                        {session.account.name ?? session.account.username}
-                    </span>
-                    <button onClick={() => void logout()} disabled={busy}>
-                        Sign out
-                    </button>
-                </header>
+                <AccountHeader
+                    session={{
+                        client: session.client,
+                        account: session.account,
+                    }}
+                    onSignOut={() => void logout()}
+                    busy={busy}
+                />
                 {children}
             </>
         );
     return (
-        <main>
-            <h1>Routing Lab sign-in</h1>
-            <p>
-                Sign in with your organization account to open the shared demo
-                workspace.
-            </p>
-            {error && <p role="alert">{error}</p>}
-            {session ? (
-                <>
-                    <button onClick={() => void login()} disabled={busy}>
-                        Sign in
-                    </button>
-                    <button onClick={() => void logout()} disabled={busy}>
-                        Sign out
-                    </button>
-                </>
-            ) : (
-                <button
-                    onClick={() => {
-                        setLoading(true);
-                        setError(null);
-                        setAttempt((value) => value + 1);
-                    }}
-                >
-                    Retry sign-in setup
-                </button>
-            )}
-        </main>
+        <>
+            <AccountHeader />
+            <main className="auth-gate">
+                <Title3 as="h1">Sign in</Title3>
+                <p>
+                    Sign in with your organization account to open the shared
+                    demo workspace.
+                </p>
+                {error && (
+                    <MessageBar intent="error" role="alert">
+                        {error}
+                    </MessageBar>
+                )}
+                <div className="auth-gate-actions">
+                    {session ? (
+                        <>
+                            <Button
+                                appearance="primary"
+                                onClick={() => void login()}
+                                disabled={busy}
+                            >
+                                Sign in
+                            </Button>
+                            <Button
+                                onClick={() => void logout()}
+                                disabled={busy}
+                            >
+                                Sign out
+                            </Button>
+                        </>
+                    ) : (
+                        <Button
+                            onClick={() => {
+                                setLoading(true);
+                                setError(null);
+                                setAttempt((value) => value + 1);
+                            }}
+                        >
+                            Retry sign-in setup
+                        </Button>
+                    )}
+                </div>
+            </main>
+        </>
     );
 }

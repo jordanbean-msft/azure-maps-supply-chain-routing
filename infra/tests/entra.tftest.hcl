@@ -20,6 +20,15 @@ run "single_tenant_delegated_registration" {
   }
   assert {
     condition = (
+      azuread_application_api_access.profile.application_id == azuread_application_registration.app.id &&
+      azuread_application_api_access.profile.api_client_id == "00000003-0000-0000-c000-000000000000" &&
+      azuread_application_api_access.profile.scope_ids == toset(["e1fe6dd8-ba31-4d61-89e7-88639da4683d"]) &&
+      azuread_application_api_access.profile.role_ids == null
+    )
+    error_message = "Profile access must request exactly delegated Graph User.Read, without application roles."
+  }
+  assert {
+    condition = (
       azuread_application_registration.app.sign_in_audience == "AzureADMyOrg" &&
       azuread_application_registration.app.requested_access_token_version == 2 &&
       !azuread_application_registration.app.implicit_access_token_issuance_enabled &&

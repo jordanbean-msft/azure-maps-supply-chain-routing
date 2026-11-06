@@ -15,7 +15,7 @@ Deploy the integrated result to the existing demo without changing its security 
   Props retain the existing contract and add optional `selectedLocation`,
   `onSelectLocation`, `target: MapTarget | null`, and `disruptions`.
   Validate focused mocked-SDK tests and TypeScript.
-- [ ] Account (isolated account worktree): own `AuthGate*`, new account-header/
+- [x] Account (isolated account worktree): own `AuthGate*`, new account-header/
   profile modules/tests/CSS, Entra module/tests and authentication docs only.
   Provide an aligned Fluent account header, Microsoft profile photo and
   `Howdy First Last!`; use initials when a photo is absent. Request only delegated
@@ -24,6 +24,10 @@ Deploy the integrated result to the existing demo without changing its security 
   profile-consent action instead of redirect loops. Keep photo/profile data in
   memory, revoke object URLs, and abort pending work on logout.
   Validate auth/profile tests, lint/types, warning-free Terraform validation/tests.
+  Complete: 17 focused frontend tests, lint/types and owned-file formatting pass;
+  Terraform fmt/validate, two mocked tests, permission allowlist and tflint pass
+  without warnings. Whole-frontend formatting flags pre-existing `mapTarget.ts`
+  (parent-owned); no out-of-scope files were changed.
 - [ ] Workspace (main): rebuild `App`, `ScenarioEditor`, `DisruptionEditor`,
   `RouteResults` and CSS with Fluent controls, a map-first split workspace,
   compact route results and plain labels. Integrate the account header.

@@ -40,6 +40,13 @@ resource "azuread_service_principal" "app" {
   app_role_assignment_required = false
 }
 
+resource "azuread_application_api_access" "profile" {
+  application_id = azuread_application_registration.app.id
+  api_client_id  = "00000003-0000-0000-c000-000000000000"
+  scope_ids      = ["e1fe6dd8-ba31-4d61-89e7-88639da4683d"] # Delegated Microsoft Graph User.Read only.
+}
+
 # Entra application registrations are directory objects, not ARM resources:
 # Azure Monitor diagnostic settings and Application Insights do not apply.
-# User authentication uses PKCE; no credentials or Graph permissions are created.
+# User authentication uses PKCE; no credentials or application permissions are
+# created. Graph User.Read is requested metadata, not a consent grant.

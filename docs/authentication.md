@@ -3,7 +3,9 @@
 The deployed demo uses a **single-tenant SPA/API application registration**.
 Terraform owns the registration, service principal, delegated `access_as_user`
 scope and web redirect. React uses Microsoft's MSAL authorization-code flow with
-PKCE. No client secret, implicit grant or Microsoft Graph permission is needed.
+PKCE. No client secret or implicit grant is used. Terraform records only the
+delegated Microsoft Graph `User.Read` permission for the user's own profile;
+it creates no application permissions, admin consent grants or preauthorization.
 
 The public static shell loads nonsecret settings from `GET /api/auth/config`.
 The workspace mounts only after sign-in. API calls and fetch-based SSE send
@@ -48,6 +50,40 @@ build-time token is required. Redirects use the current web origin plus `/`;
 `localhost` and `127.0.0.1` are different origins. Production redirects must use
 HTTPS. Sign-out unmounts the workspace and invokes Entra logout.
 
+## Account header and optional profile consent
+
+The same Fluent header labels offline mode as `Demo workspace`. Signed-in users
+see `Howdy First Last!` using Graph `givenName` and `surname`, with ID-token
+`given_name`/`family_name` or display name as a fallback. Names are never invented.
+The Fluent avatar displays the actual Microsoft photo when available, otherwise
+initials. A missing photo (HTTP 404) is normal.
+
+Sign-in requests the API scope in `scopes` and Graph
+`https://graph.microsoft.com/User.Read` in `extraScopesToConsent`. MSAL supports
+consent for another resource without mixing resource scopes in the API token.
+Profile loading separately acquires a Graph-only access token and calls
+`/v1.0/me?$select=givenName,surname,displayName` and `/v1.0/me/photo/$value`.
+The routing API token provider continues to request only `access_as_user`.
+
+Existing sessions without Graph consent remain usable. Profile/token failures
+never block the workspace or automatically launch interactive authentication.
+The explicit **Load profile photo** action opens an MSAL consent popup. Tenant
+policy may require administrator approval; this application does not grant it.
+Denied consent and other Graph failures retain the ID-token/initials fallback.
+Fetched names, photos and Graph tokens are kept in memory only, not logged or
+persisted. Profile token requests disable MSAL token caching with `storeInCache`;
+the API sign-in session retains its existing session-storage cache, never
+localStorage, and is cleared on logout.
+Profile requests are aborted and photo object URLs revoked when the account
+header unmounts, including session expiry and logout.
+
+Offline permission regression checks:
+
+```sh
+terraform -chdir=infra test -filter=tests/entra.tftest.hcl -filter=tests/workload-auth.tftest.hcl
+bash infra/tests/entra-permissions.test.sh
+```
+
 ## Verification
 
 ```sh
@@ -74,5 +110,8 @@ file after use. Never disable JWT verification for smoke tests.
 
 References:
 [MSAL browser](https://learn.microsoft.com/entra/msal/javascript/browser/),
+[MSAL multi-resource consent](https://learn.microsoft.com/entra/msal/javascript/browser/resources-and-scopes#consent),
+[Graph own profile](https://learn.microsoft.com/graph/api/user-get),
+[Graph profile photo](https://learn.microsoft.com/graph/api/profilephoto-get),
 [SPA authorization code](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow),
 [API access-token validation](https://learn.microsoft.com/entra/identity-platform/access-tokens#validate-tokens).
