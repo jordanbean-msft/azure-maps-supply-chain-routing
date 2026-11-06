@@ -1,6 +1,6 @@
 # Entra authentication deployment
 
-Status: Blocked — remote state access denied by enforced network policy
+Status: Validated
 
 ## Scope and architecture
 
@@ -31,8 +31,8 @@ Local deterministic demo mode may explicitly disable authentication.
 
 Selected local azd environment: `demo`. Dedicated application group:
 `rg-scroute-eus2`; state group: `rg-scroute-state-eus2`; state storage account:
-`stscroute0ec6c4`, intended container `tfstate`. Both groups and the empty storage
-account were created; the container could not be created.
+`stscroute0ec6c4`, container `tfstate`. Both groups, the storage account and the
+private container now exist with the explicitly authorized exception tag.
 The active principal has subscription Owner,
 role-assignment and Storage Blob Data Contributor permissions.
 
@@ -67,6 +67,14 @@ that exact field replacement. Cosmos has an equivalent enforced modification.
 Both policies recognize `SecuredByPerimeter`, but a compliant perimeter/private
 network design and connected deployment path have not been supplied.
 
+The user subsequently explicitly requested `SecurityControl=Ignore` on the demo
+Azure resources and another deployment attempt. Apply this operator-authorized
+exception to the two dedicated groups and state account, and persist the tag in
+Terraform's shared tag map for all app-owned ARM resources. Do not tag shared
+networking, policy definitions or unrelated resources. Re-enable the deliberately
+selected public state endpoint while keeping shared keys and anonymous access
+disabled. The earlier networking blocker is being retried under this authorization.
+
 ## Execution checklist
 
 - [x] Inspect repository, active tenant/subscription and deployment state.
@@ -77,8 +85,7 @@ network design and connected deployment path have not been supplied.
 - [x] Validate application, browser and Terraform behavior.
 - [ ] Invoke azure-validate, then azure-deploy.
 - [ ] Provision registration/resources, deploy and verify live authentication.
-  Blocked before Terraform apply: state Blob requests return HTTP 403. No
-  registration, Container App, ACR, Maps or Cosmos account was created.
+  Ready after successful validation retry; no application resources applied yet.
 
 ## All validation checks pass
 
@@ -89,9 +96,9 @@ network design and connected deployment path have not been supplied.
 - [x] Application builds, local tests and Docker build-context/lockfile checks.
 - [x] `azd package --all --no-prompt` succeeds; remote image builds occur later.
 - [x] Static data-plane RBAC verification.
-- [ ] Remote backend initialization, real plan and state access: HTTP 403.
-- [ ] `azd provision --preview --no-prompt`: same backend HTTP 403.
-- [ ] Policy-compatible deployment networking: required before proceeding.
+- [x] Remote backend initialization, real plan and state access.
+- [x] `azd provision --preview --no-prompt`: 55 additions, no changes/deletions.
+- [x] Explicitly authorized policy exception restores selected public networking.
 
 ## Static role verification
 
@@ -100,7 +107,8 @@ scoped to the scenario container. API/web/refresh have registry AcrPull.
 The separate browser identity has only the custom Maps render data action.
 The deployer has registry AcrPush; state uses Entra Blob Data Contributor.
 The new registration has delegated user scope only, no Graph data permissions
-or client credentials. No access keys or policy exemptions were introduced.
+or client credentials. No access keys were introduced. The only policy exception
+is the resource/group tag explicitly requested by the operator.
 
 ## 7. Validation proof
 
@@ -136,15 +144,23 @@ Azure-validate execution on 2026-11-06:
 | Required Terraform preflight | `validate-terraform.sh infra` with generated backend config | Tools/auth/fmt/validate/template/JSON pass; init/plan/state fail due inaccessible backend |
 | Enforced policy evidence | Activity log policy modify event and inherited policy definitions | Storage public access forcibly disabled; Cosmos subject to equivalent policy |
 
-Validation did not complete successfully. Do not mark this plan Validated or
-invoke application deployment until approved networking is available. No
-policy assignment, exemption, shared network or unrelated resource was changed.
+The first validation attempt did not complete successfully. After the user's
+explicit exception-tag authorization, the retry passed:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Resource tags | Actual group/account tags and Terraform plan JSON | All 13 taggable planned app ARM resources have `SecurityControl=Ignore`; unrelated resources untouched |
+| State access | `az storage container create/show --auth-mode login` | Private `tfstate` container accessible; shared keys/anonymous access disabled |
+| Real preview | `azd provision --preview --no-prompt` | Pass: 55 additions, zero changes/deletions, no warnings |
+| Complete Terraform preflight | `validate-terraform.sh infra` with generated backend/tfvars | All ten checks pass, including init/plan/state |
+| Terraform regression | fmt, JSON validate, `terraform test`, TFLint | Zero warnings/errors; 10 mocked plans pass |
+| Package preparation | `azd package --all --no-prompt` | Pass in remote-build mode |
+
+Validated by: azure-validate workflow, 2026-11-06. All recipe checks now pass.
 
 ## Resumption requirements
 
-Provide an approved, reachable state endpoint and policy-compliant Cosmos
-networking: private endpoints with a connected runner, or an approved enforced
-NSP configuration. Preserve Entra-only storage authentication and the existing
-Terraform state conventions. Then create `tfstate`, rerun azure-validate, and
-invoke azure-deploy for provisioning, registration creation and image deployment.
-The two dedicated resource groups and empty state account remain available.
+State access is restored. Complete the azure-validate status workflow and invoke
+azure-deploy for provisioning, registration creation and remote image deployment.
+Do not remove the exception tag silently or claim interactive Entra sign-in
+without browser evidence.

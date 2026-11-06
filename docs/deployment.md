@@ -60,10 +60,17 @@ policy, and granting more Blob roles will not fix a network-denied 403.
 
 Use approved private endpoints with a connected deployment runner, or an
 approved enforced Network Security Perimeter design where supported. Do not
-disable governance, add exemption tags, enable shared keys or move state into an
+disable governance, add unapproved exemption tags, enable shared keys or move state into an
 unrelated open storage account to work around the restriction. Establish a
 reachable state backend before provisioning; otherwise Terraform cannot create
 the app registration or application resources.
+
+For this demo, the operator explicitly authorized `SecurityControl=Ignore`.
+`main.tfvars.json` persists this exception on app-owned taggable resources;
+the dedicated app/state groups and state account are tagged outside Terraform.
+This opts the demo out of matching inherited security controls. Do not copy
+this exception into production without separate approval. Shared keys and
+anonymous Blob access remain disabled despite the public endpoint.
 
 ### Private-first configuration
 

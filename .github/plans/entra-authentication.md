@@ -46,3 +46,10 @@ All signed-in tenant users share the bounded demo scenarios, as before.
   Both dedicated groups and empty `stscroute0ec6c4` exist; no registration or app
   resources were created. Cosmos has an equivalent policy. Resume only with
   approved private/NSP networking and reachable state; do not override policies.
+  RESUMING: user explicitly authorized `SecurityControl=Ignore` for demo resources.
+  Persist the tag in Terraform, tag the dedicated groups/state account, restore
+  Entra-protected state access, repeat validation and deploy.
+  State access is restored and all validation passes. The real preview contains
+  55 additions, no changes/deletions; all 13 taggable app ARM resources carry the
+  requested tag. azd provisioning is running; registration and app rollout still
+  require live verification.
