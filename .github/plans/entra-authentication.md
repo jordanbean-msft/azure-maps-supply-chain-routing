@@ -15,12 +15,18 @@ All signed-in tenant users share the bounded demo scenarios, as before.
   Read discovery before mounting the workspace; MSAL login/logout; bearer tokens
   on every API and streamed SSE call, never URL tokens. Local disabled auth stays
   compatible. Acceptance: auth and stream tests, frontend lint/types/tests/build.
-- [ ] Infrastructure (auth-infra worktree): `infra/` only.
+- [x] Infrastructure (auth-infra worktree): `infra/` only.
   Create secretless single-tenant SPA/API registration, service principal, User
   `access_as_user` delegated scope and v2 tokens. Configure production redirect
   without a graph dependency cycle; set API auth environment settings and export
   nonsecret IDs/scope. Preserve internal API and existing managed identities.
   Acceptance: format/init/validate, mocked plans, TFLint and deployment plan.
+  Validated: AzureAD 3.10.0 locked for Linux ARM64/AMD64; format/init/validate
+  and recursive TFLint pass without warnings; 10 mocked registration, workload
+  and deployment plans pass. Production SPA root also supports MSAL post-logout;
+  extra redirects are explicit only. Refresh keeps its non-HTTP entry point and
+  receives the same nonsecret settings for centralized configuration validation.
+  No live plan/apply or Azure resource changes performed in this worktree.
 - [ ] Integration (main worktree): documentation, deployment scripts/workflows,
   environment examples and VS Code automation if commands change. Review worktree
   commits and integrate; run combined checks and local browser walkthrough.

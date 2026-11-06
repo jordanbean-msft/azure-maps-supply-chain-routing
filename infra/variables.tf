@@ -170,6 +170,21 @@ variable "workloads" {
   }
 }
 
+variable "authentication" {
+  description = "Explicit extra SPA root redirect URIs; production sign-in and post-logout use the provisioned web origin automatically."
+  type = object({
+    extra_spa_redirect_uris = list(string)
+  })
+  validation {
+    condition = alltrue([
+      for uri in var.authentication.extra_spa_redirect_uris :
+      can(regex("^https://[a-zA-Z0-9.-]+(:[0-9]+)?/$", uri)) ||
+      can(regex("^http://localhost(:[0-9]+)?/$", uri))
+    ])
+    error_message = "Extra SPA redirects must be explicit HTTPS origins with a trailing slash, or HTTP localhost origins for development."
+  }
+}
+
 variable "tags" {
   description = "Additional tags; required azd discovery tags cannot be overridden."
   type        = map(string)

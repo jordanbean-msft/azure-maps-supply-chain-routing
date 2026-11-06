@@ -57,6 +57,10 @@ locals {
     MAPS_ALLOWED_ORIGINS  = jsonencode(concat(["https://${local.web_fqdn}"], var.extra_allowed_origins))
     TELEMETRY_ENABLED     = tostring(var.config.telemetry_enabled)
     REFRESH_MAX_SCENARIOS = tostring(var.config.refresh_max_scenarios)
+    AUTH_ENABLED          = "true"
+    ENTRA_TENANT_ID       = var.authentication.tenant_id
+    ENTRA_CLIENT_ID       = var.authentication.client_id
+    ENTRA_API_SCOPE       = var.authentication.api_scope
   })
   app_config = {
     api = {

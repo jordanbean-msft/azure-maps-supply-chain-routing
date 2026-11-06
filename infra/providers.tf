@@ -2,6 +2,10 @@ terraform {
   required_version = ">= 1.9"
 
   required_providers {
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.10"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 5.13"
@@ -23,6 +27,10 @@ terraform {
   #   azd env set RS_STORAGE_ACCOUNT <sa>
   #   azd env set RS_CONTAINER_NAME  <container>
   backend "azurerm" {}
+}
+
+provider "azuread" {
+  tenant_id = var.azure.tenant_id
 }
 
 provider "azurerm" {

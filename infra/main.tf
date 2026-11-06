@@ -92,6 +92,22 @@ module "maps" {
   }
 }
 
+module "entra" {
+  source = "./modules/entra"
+
+  resource_token  = local.resource_token
+  tenant_id       = var.azure.tenant_id
+  owner_object_id = var.azure.principal_id
+}
+
+# Keep hostname-dependent redirects outside the registration module: workloads
+# need its client ID before they can supply the production browser hostname.
+resource "azuread_application_redirect_uris" "spa" {
+  application_id = module.entra.application_id
+  type           = "SPA"
+  redirect_uris  = concat(["https://${module.workloads.web_fqdn}/"], var.authentication.extra_spa_redirect_uris)
+}
+
 module "workloads" {
   source = "./modules/workloads"
 
@@ -110,7 +126,12 @@ module "workloads" {
   cosmos_database               = var.cosmos.database_name
   cosmos_container              = var.cosmos.container_name
   extra_allowed_origins         = var.maps.extra_allowed_origins
-  config                        = var.workloads
+  authentication = {
+    tenant_id = var.azure.tenant_id
+    client_id = module.entra.client_id
+    api_scope = module.entra.api_scope
+  }
+  config = var.workloads
   rbac_dependencies = [
     module.registry.rbac_ids,
     module.cosmos.rbac_ids,

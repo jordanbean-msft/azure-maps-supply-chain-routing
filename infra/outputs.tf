@@ -2,6 +2,18 @@ output "AZURE_RESOURCE_GROUP" {
   description = "Pre-existing deployment resource group."
   value       = data.azurerm_resource_group.rg.name
 }
+output "ENTRA_CLIENT_ID" {
+  description = "Public single-tenant SPA/API application client ID."
+  value       = module.entra.client_id
+}
+output "ENTRA_TENANT_ID" {
+  description = "Tenant issuing delegated user access tokens."
+  value       = var.azure.tenant_id
+}
+output "ENTRA_API_SCOPE" {
+  description = "Full delegated API scope requested by the SPA."
+  value       = module.entra.api_scope
+}
 output "AZURE_CONTAINER_REGISTRY" {
   description = "Canonical azd container registry name."
   value       = module.registry.name

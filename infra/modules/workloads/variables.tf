@@ -67,6 +67,14 @@ variable "rbac_dependencies" {
   description = "Completed role assignments which must propagate before application creation."
   type        = list(list(string))
 }
+variable "authentication" {
+  description = "Public identifiers for single-tenant delegated authentication, independent of workload managed identities."
+  type = object({
+    tenant_id = string
+    client_id = string
+    api_scope = string
+  })
+}
 variable "config" {
   description = "Explicit runtime, health, scaling and scheduled job configuration."
   type = object({
