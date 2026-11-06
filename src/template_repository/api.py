@@ -83,9 +83,7 @@ def create_router(runtime: Runtime) -> APIRouter:
         runtime.require_ready()
         response.headers["Cache-Control"] = "no-store"
         if runtime.browser_credential is None:
-            raise ServiceError(
-                503, "A separate render-only Maps browser identity is not configured."
-            )
+            raise ServiceError(503, "A separate Maps browser identity is not configured.")
         origin = request.headers.get("origin")
         if origin is None and request.headers.get("sec-fetch-site") == "same-origin":
             try:

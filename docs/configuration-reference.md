@@ -21,7 +21,7 @@ Terraform. Never commit a populated `.env` or print the full azd environment.
 | `ALLOW_DEVELOPER_CREDENTIALS` | `false` | Explicit opt-in to DefaultAzureCredential for local live-mode development. |
 | `AZURE_MAPS_CLIENT_ID` | unset | Maps **account** client ID, not an identity client ID. |
 | `AZURE_MAPS_ENDPOINT` | `https://atlas.microsoft.com` | Azure Maps service origin. |
-| `MAPS_BROWSER_CLIENT_ID` | unset | Separate render-only managed identity attached to API for browser token brokerage. |
+| `MAPS_BROWSER_CLIENT_ID` | unset | Separate render/traffic managed identity attached to API for browser token brokerage. |
 | `MAPS_ALLOWED_ORIGINS` | `[]` | JSON array of exact browser origins, including scheme and nonstandard port. |
 | `COSMOS_ENDPOINT` | unset | Cosmos account HTTPS endpoint. |
 | `COSMOS_DATABASE` | `supply-chain-routing` | Database name; deployment explicitly supplies `supply-chain`. |
@@ -53,8 +53,9 @@ authorization system.
 | `E2E_API_PORT`, `E2E_WEB_PORT` | Optional isolated Playwright test ports, defaults 8000/5173. |
 
 No Azure key or token belongs in a Vite environment variable or frontend
-bundle. The browser requests short-lived render-only authorization from the
-API.
+bundle. The browser requests short-lived render/traffic authorization from the
+API. It cannot call Maps search, routing or weather services. Traffic overlays
+require the explicit `Microsoft.Maps/accounts/services/traffic/read` data action.
 
 React discovers nonsecret Entra configuration at `/api/auth/config`; no frontend
 rebuild is required when deployment IDs change. MSAL obtains user access tokens

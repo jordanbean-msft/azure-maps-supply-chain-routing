@@ -35,7 +35,7 @@ variable "reader_principals" {
   type        = map(string)
 }
 variable "browser_principal_id" {
-  description = "Separate managed identity restricted to rendering browser map tiles."
+  description = "Separate managed identity restricted to rendering map tiles and traffic overlays."
   type        = string
 }
 variable "resource_group_id" {

@@ -66,7 +66,7 @@ class Runtime:
             )
             self.routing = AzureMapsRouting(http, credential, self.settings, self.repository)
             # Never expose the backend identity's routing/search permissions to a browser.
-            # Infra must give this separate identity render-only Azure Maps data actions.
+            # Browser tiles need render and traffic reads, not route or weather access.
             if self.settings.maps_browser_client_id:
                 self.browser_credential = ManagedIdentityCredential(
                     client_id=self.settings.maps_browser_client_id

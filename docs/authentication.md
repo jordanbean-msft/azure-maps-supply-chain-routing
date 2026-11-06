@@ -15,7 +15,7 @@ API audience, tenant, lifetime and delegated scope. Health endpoints remain
 public for probes; other `/api` endpoints require authentication.
 
 User identity is separate from `AZURE_CLIENT_ID` (workload managed identity),
-`AZURE_MAPS_CLIENT_ID` (Maps account) and `MAPS_BROWSER_CLIENT_ID` (render-only
+`AZURE_MAPS_CLIENT_ID` (Maps account) and `MAPS_BROWSER_CLIENT_ID` (render/traffic
 identity). Changing these to the Entra registration ID breaks service access.
 
 ## Access and boundaries

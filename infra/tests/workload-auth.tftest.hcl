@@ -1,4 +1,10 @@
 mock_provider "azurerm" {
+  mock_resource "azurerm_maps_account" {
+    override_during = plan
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test/providers/Microsoft.Maps/accounts/test"
+    }
+  }
   mock_data "azurerm_monitor_diagnostic_categories" {
     defaults = {
       log_category_types = ["Audit"]
@@ -22,6 +28,38 @@ mock_provider "azurecaf" {
   }
 }
 mock_provider "time" {}
+
+run "browser_can_render_traffic_without_routing_or_weather_privileges" {
+  command = plan
+  module {
+    source = "./modules/maps"
+  }
+  variables {
+    resource_token                = "testresource"
+    resource_group_name           = "test"
+    resource_group_id             = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test"
+    location                      = "eastus2"
+    tags                          = {}
+    public_network_access_enabled = true
+    log_analytics_workspace_id    = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/test/providers/Microsoft.OperationalInsights/workspaces/test"
+    sku_name                      = "G2"
+    allowed_origins               = ["https://demo.example.com"]
+    reader_principals             = {}
+    browser_principal_id          = "00000000-0000-0000-0000-000000000004"
+  }
+  assert {
+    condition = (
+      length(azurerm_role_definition.browser.permissions[0].actions) == 0 &&
+      toset(azurerm_role_definition.browser.permissions[0].data_actions) == toset([
+        "Microsoft.Maps/accounts/services/render/read",
+        "Microsoft.Maps/accounts/services/traffic/read",
+      ]) &&
+      azurerm_role_assignment.browser.scope == azurerm_maps_account.maps.id &&
+      azurerm_role_assignment.browser.principal_id == var.browser_principal_id
+    )
+    error_message = "Browser overlays need render and traffic reads on this Maps account only, without management, search, route or weather service permissions."
+  }
+}
 
 run "protected_api_preserves_workload_boundaries" {
   command = plan

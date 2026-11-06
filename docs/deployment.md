@@ -231,7 +231,9 @@ API, refresh and web have independent managed identities/AcrPull. API/refresh
 have Maps Data Reader and Cosmos native NoSQL Data Contributor scoped to the
 scenario container (`azurerm_cosmosdb_sql_role_assignment`, not an ARM role).
 A fourth, separate browser identity is attached only to the API, assigned a
-custom render-only Maps data role, and supplied as `MAPS_BROWSER_CLIENT_ID`.
+custom render-and-traffic Maps data role, and supplied as `MAPS_BROWSER_CLIENT_ID`.
+The Web SDK's incident/flow tile endpoints require `services/traffic/read` in
+addition to `services/render/read`; render-only access is insufficient.
 Browser tokens do not expose routing/weather privileges.
 `MAPS_ALLOWED_ORIGINS` is an exact JSON origin allowlist including the web
 hostname. No Key Vault is needed: the only permitted exporter connection string

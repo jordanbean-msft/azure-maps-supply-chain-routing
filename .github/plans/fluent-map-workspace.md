@@ -51,7 +51,12 @@ Deploy the integrated result to the existing demo without changing its security 
   two Chromium workflows pass. Desktop/mobile screenshots inspected; sidebar
   overflow and route annotation clutter corrected. Existing commands/tasks
   remain valid. Maps SDK bundle advisory is unchanged.
-- [ ] Rollout (main; depends on integration): revalidate the existing azd project,
+- [ ] Traffic authorization (main; rollout prerequisite): SDK v3 calls the Traffic
+  tile service for overlays, which the previous render-only identity cannot
+  read. Add only traffic read to the existing custom role, preserving its ID and
+  account-scoped assignment. Validate the permission boundary, re-preview and
+  apply the non-destructive role update before claiming live overlay support.
+- [ ] Rollout (main; depends on integration and traffic authorization): revalidate the existing azd project,
   provision the minimal Graph permission metadata change, deploy API/web through
   ACR, verify healthy revisions, public auth boundaries and the real sign-in
   entry. Record that real profile access requires the user's delegated consent.

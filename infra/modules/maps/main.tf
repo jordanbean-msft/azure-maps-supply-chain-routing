@@ -24,14 +24,18 @@ resource "azurerm_maps_account" "maps" {
 }
 
 resource "azurerm_role_definition" "browser" {
-  name               = "Maps Render Only ${var.resource_token}"
+  name = "Maps Browser Render and Traffic ${var.resource_token}"
+  # Preserve the deployed ID and assignments while enabling traffic overlays.
   role_definition_id = uuidv5("dns", "${var.resource_group_id}/${var.resource_token}/maps-render-only")
   scope              = var.resource_group_id
-  description        = "Render-only Azure Maps access for short-lived browser tokens; no search, route or weather access."
+  description        = "Render and traffic access for short-lived browser map tokens; no search, route or weather service access."
   assignable_scopes  = [var.resource_group_id]
   permissions {
-    actions      = []
-    data_actions = ["Microsoft.Maps/accounts/services/render/read"]
+    actions = []
+    data_actions = [
+      "Microsoft.Maps/accounts/services/render/read",
+      "Microsoft.Maps/accounts/services/traffic/read",
+    ]
   }
 }
 resource "azurerm_role_assignment" "browser" {

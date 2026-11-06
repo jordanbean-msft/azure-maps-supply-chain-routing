@@ -13,21 +13,22 @@ private state container and existing resources; do not initialize a new project.
 Deploy the square-corner Fluent UI map-first workspace, Houston-area default
 scenario, synchronized named route/facility targets, traffic/basemap/fit controls,
 and aligned account photo with `Howdy First Last!`. Add only delegated Graph
-`User.Read` permission metadata to the existing registration. Graph tokens remain
+`User.Read` permission metadata to the existing registration and enable traffic
+read on the existing browser Maps role for the new overlays. Graph tokens remain
 separate from API tokens. Do not create consent grants, application permissions,
 credentials or a new registration. Existing sessions can explicitly load the
 photo if further consent is needed. Actual personal photo access requires a
 delegated signed-in session and is not claimed by mocked browser tests.
 
-Preserve workload identities, internal API ingress, RBAC and the explicitly
+Preserve workload identities, internal API ingress and the explicitly
 authorized `SecurityControl=Ignore` tags. No new ARM services or regional capacity
 are required. Preview the actual change before applying; use secure ACR remote
 builds, confirm visible AcrPull and verify healthy revisions/auth boundaries.
 Autopilot continues the existing approved implementation/rollout without
-reselecting subscription, changing policies or granting additional privileges.
+reselecting subscription, changing policies or granting unrelated privileges.
 
 Local validation: 181 warning-free Python tests with Ruff/format/mypy;
-59 frontend tests and build; 10 mocked Terraform plans, warning-free validation
+59 frontend tests and build; 11 mocked Terraform plans, warning-free validation
 and TFLint; two Chromium desktop/mobile flows including mocked Graph profile,
 closure and facility delay. Visual inspection led to verified sidebar intrinsic
 sizing and schematic-label fixes; no horizontal page/sidebar overflow remains.
@@ -45,6 +46,8 @@ sizing and schematic-label fixes; no horizontal page/sidebar overflow remains.
   - [x] `azd package --all --no-prompt` in secure remote-build mode.
   - [x] Complete Terraform preflight including remote state/plan.
   - [x] Existing policy/tag preservation and static data-plane role verification.
+  - [x] Traffic follow-up: 11 mocked plans and real preview/preflight pass;
+    existing role updated in place, no additions, replacements or deletions.
 
 ## 7. Validation Proof
 
@@ -69,11 +72,39 @@ coverage uses mocked Graph and does not claim a personal delegated cloud session
 
 Static RBAC remains verified: registry-scoped AcrPull for API/web/refresh;
 Maps Data Reader and container-scoped native Cosmos Data Contributor for API and
-refresh; render-only Maps data action for the separate browser identity.
-No assignments change. Policy assignments were retrieved; the existing explicit
+refresh; only render and traffic Maps reads for the separate browser identity.
+No assignment IDs/scopes change. Policy assignments were retrieved; the existing explicit
 exception tag remains on the app group/state account, with shared keys and
 anonymous Blob access disabled. No policy, ingress or network changes are planned.
 The existing Maps SDK large-bundle advisory remains non-blocking.
+
+### Traffic overlay authorization follow-up
+
+The UI/API deployment succeeded with healthy revisions and exact verified
+frontend artifacts. Live verification identified that SDK v3 requests
+`/traffic/incident/tile/pbf`; the provider classifies Traffic APIs separately
+from Render APIs. The previous render-only browser role is therefore
+insufficient for the newly added traffic control.
+
+Add exactly `Microsoft.Maps/accounts/services/traffic/read` alongside render
+read on the existing browser custom role. Preserve its definition/assignment
+IDs and Maps-account scope. No management, search, route or weather-service
+permissions are added. Update the role's display name/description and add a
+mocked-plan boundary test. Align backend configuration wording, then redeploy
+only API after the role update; frontend assets do not change.
+
+Follow-up validation: Terraform format/validate, 11 mocked plans, TFLint and the
+complete real-state preflight all pass without warnings. Real azd preview shows
+zero additions, nine in-place changes (one custom role plus the existing
+diagnostic-destination drift), and zero destruction. The role and assignment IDs,
+principal and account scope are preserved.
+Ruff/format/mypy, 71 targeted warning-free API/auth tests, `uv build` and
+`azd package api --no-prompt` pass after the backend wording change.
+Follow-up evidence recorded: 2026-11-06T17:00:26-06:00.
+
+Sources: [Web SDK traffic overlays](https://learn.microsoft.com/azure/azure-maps/map-show-traffic),
+the installed SDK v3 incident tile URL, and the live `Microsoft.Maps` provider
+operation descriptions for `services/render/read` and `services/traffic/read`.
 
 ## Previous Entra deployment record (historical)
 
