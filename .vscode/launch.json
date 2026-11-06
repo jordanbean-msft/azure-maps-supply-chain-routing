@@ -30,6 +30,16 @@
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/frontend",
       "preLaunchTask": "frontend:dev"
+    },
+    {
+      "name": "Refresh: bounded scheduled job",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "template_repository.refresh",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "preLaunchTask": "sync-venv",
+      "justMyCode": true
     }
   ]
 }

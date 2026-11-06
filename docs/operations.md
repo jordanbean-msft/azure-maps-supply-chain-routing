@@ -48,6 +48,15 @@ Use request correlation IDs to connect a user-visible error to API and upstream
 logs. Never include authorization headers, Maps tokens, Cosmos credentials, or
 full request bodies in logs. Changing log verbosity should not expose secrets.
 
+Application metrics are `maps.requests`, `maps.duration`,
+`optimization.duration`, `solver.duration`, `optimization.routes`,
+`optimization.failures`, `cache.hits`, and `cosmos.request_charge`.
+Durations are seconds; Cosmos charge is request units. A maximum-size cold
+scenario can make **91 upstream HTTP requests before retries**: one matrix
+request, 30 Directions requests, and up to 60 weather requests. Matrix billing
+still counts its cells separately. Keep the two-optimization concurrency bound
+and retry/refresh limits in mind when setting service quotas.
+
 In the Azure portal, inspect:
 
 - Azure Maps transactions by service/API and failed/throttled requests.

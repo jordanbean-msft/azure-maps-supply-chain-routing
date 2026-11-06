@@ -68,6 +68,8 @@ jobs:
           terraform -chdir=infra validate -json > "$RUNNER_TEMP/terraform-validation.json"
           jq -e '.valid and .error_count == 0 and .warning_count == 0' \
             "$RUNNER_TEMP/terraform-validation.json"
+      - run: terraform -chdir=infra test
+      - run: sh infra/tests/deploy-refresh.test.sh
 
   containers:
     name: Container builds

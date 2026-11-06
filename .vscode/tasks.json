@@ -143,6 +143,28 @@
       "problemMatcher": []
     },
     {
+      "label": "frontend:e2e",
+      "type": "shell",
+      "command": "npm run test:e2e",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "api:smoke",
+      "type": "shell",
+      "command": "bash scripts/smoke-api.sh http://127.0.0.1:8000",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "run-refresh",
+      "type": "shell",
+      "command": "uv run python -m template_repository.refresh",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
       "label": "frontend:format",
       "type": "shell",
       "command": "npm run format",
@@ -201,6 +223,21 @@
       "command": "tflint --recursive",
       "options": { "cwd": "${workspaceFolder}/infra" },
       "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:test",
+      "type": "shell",
+      "command": "terraform -chdir=infra test",
+      "dependsOn": "infra:init",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra:hook-test",
+      "type": "shell",
+      "command": "sh infra/tests/deploy-refresh.test.sh",
+      "group": "test",
       "problemMatcher": []
     },
     {

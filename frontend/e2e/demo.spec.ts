@@ -25,7 +25,9 @@ test("seed → edit → optimize → close a route → compare persisted results
     const route = page.getByRole("table").locator("tbody tr").first();
     const routeId = (await route.locator("small").innerText()).trim();
     await route.getByRole("button").click();
-    await page.getByLabel("Target", { exact: true }).selectOption(routeId);
+    await page
+        .getByRole("combobox", { name: "Target", exact: true })
+        .selectOption(routeId);
     await page
         .getByLabel("Disruption name", { exact: true })
         .fill("Browser road closure");

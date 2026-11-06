@@ -1,7 +1,10 @@
 # Supply chain routing demo
 
 Approved scope and source: session `a951a2e4-af67-411c-bb1a-0724e0d90e82/plan.md`.
-Only the foundation is implemented in this change. Preserve `template_repository`
+API, frontend, and infrastructure changes were implemented in isolated worktrees
+and integrated on main. Local application validation is complete; full container
+builds and live Azure verification remain explicitly blocked/deferred below.
+Preserve `template_repository`
 and the `template-repository` CLI alias to avoid breaking existing imports,
 tests, CI and consumers; the project/display name is `supply-chain-routing`.
 
@@ -13,42 +16,62 @@ tests, CI and consumers; the project/display name is `supply-chain-routing`.
   Acceptance: typed snake_case contracts, no-credentials demo configuration,
   health/config endpoints, frontend API request, buildable scaffolds, common tasks.
   Validate: Ruff check/format, mypy, pytest `-W error`, frontend lint/typecheck/test/build/format.
-- [ ] **2. domain-persistence — Implement domain models and Cosmos persistence.**
+- [x] **2. cosmos-persistence — Implement domain models and Cosmos persistence.**
   Backend owner; depends on 1. Extend shared models, add async repository interfaces,
   Cosmos CRUD, ETags, TTL and seed data. Verify fake-repository concurrency and
-  scenario-scoped partition keys. No implementation yet.
-- [ ] **3. azure-maps — Implement Azure Maps integration.**
+  scenario-scoped partition keys. Implemented; fake Cosmos CRUD/ETag/TTL and
+  memory expiration tests pass without cloud credentials.
+- [x] **3. azure-maps-integration — Implement Azure Maps integration.**
   Backend owner; depends on 1 and persistence contracts from 2. Add async geocode,
   matrix, directions, traffic/weather and token services behind DI. Test retries,
-  throttling, missing routes and partial failures. No implementation yet.
-- [ ] **4. optimization — Implement cost and optimization engine.**
+  throttling, missing routes and partial failures. Implemented with stable
+  v2025 routing and Weather Along Route 1.1; actual road geometry, ETA offsets,
+  forecast-horizon warnings, and current/future departure handling are tested.
+  Live account behavior is not verified.
+- [x] **4. optimization-engine — Implement cost and optimization engine.**
   Backend owner; depends on 1. Add transparent costs, min-cost-flow allocation and
   alternatives. Test infeasibility, capacity, prohibited lanes and deterministic
   rankings. OR-Tools exception: no equivalent Microsoft constrained optimizer.
-  No implementation yet.
-- [ ] **5. api-workflows — Implement FastAPI application workflows.**
+  Implemented; capacity, closures, numerical bounds, precision, and costs pass
+  deterministic tests.
+- [x] **5. fastapi-workflows — Implement FastAPI application workflows.**
   Backend owner; depends on 2, 3, 4. Implement session API contract, persisted
   asynchronous progress/SSE, problem details, bounded inputs and idempotency.
-  Validate async API tests with fake Azure services. No implementation yet.
-- [ ] **6. interactive-frontend — Build the interactive React application.**
+  Validated with async fake-service tests plus a real local API smoke:
+  seed, optimize, shipment conservation, persisted SSE events, ETag deletion.
+  Configured live initialization failures abort startup for ACA recovery.
+- [x] **6. react-experience — Build the interactive React application.**
   Frontend owner; depends on 1 and API integration from 5. Own `frontend/` except
   coordinate shared `types.ts` changes with backend. Add editor, map, allocation
   and disruption comparison; verify component tests and seed-to-optimization flow.
-  No implementation yet.
-- [ ] **7. azure-infrastructure — Containerize and provision Azure resources.**
+  Implemented and integrated. Fifteen component tests and a real Chromium
+  seed/edit/optimize/closure/comparison/reload flow pass. Real-browser validation
+  found and fixed Vite/Nginx Host preservation without weakening origin checks.
+- [x] **7. azure-infrastructure — Implement Azure deployment resources.**
   Infrastructure owner; depends on 1 and stable runtime requirements. Own `infra/`,
   later azd integration and refresh job. Foundation supplies Dockerfiles only.
   Use pre-created resource group, managed identity, internal API ingress, web
   public ingress. Validate Terraform fmt/init/validate with zero warnings.
-  No infrastructure implemented or provisioned yet.
-- [ ] **8. observability — Add observability, resilience, and cost controls.**
+  Implemented. Terraform init/fmt/validate (zero warnings), five mocked plans,
+  TFLint and three image synchronization hook tests pass. No Azure resources
+  provisioned; full container build verification remains blocked below.
+- [x] **8. observability-resilience — Add observability, resilience, and cost controls.**
   Integration owner; depends on 3, 5, 7. Add telemetry, request correlation,
   quotas, cache/TTL, health dependency checks and alerts. Verify actionable failure
-  telemetry and transaction limits. No implementation yet.
-- [ ] **9. delivery-validation — Update CI/CD, documentation, and demo validation.**
+  telemetry and transaction limits. Structured logging, correlation, Azure
+  Monitor instrumentation, service diagnostics, bounds, caching, TTL, and
+  failure/readiness tests are integrated. Live telemetry export is not verified.
+- [ ] **9. delivery-documentation — Complete deployment validation.**
   Integration owner; depends on all preceding work. Expand CI, OIDC deployment,
   architecture/setup/demo documentation and deployed smoke tests. Full CI/container
-  and end-to-end verification is deferred, not claimed by foundation.
+  and deployment verification are blocked/deferred. CI jobs, OIDC workflows,
+  architecture/research/operations/configuration docs, VS Code tasks/debuggers,
+  and the bounded local/deployed API smoke script are implemented and checked.
+  Local browser E2E passes. Full image builds fail at package registry TLS
+  handshakes inside the Docker daemon (Python wheel host and npm registry);
+  TLS verification was not disabled. Provisioning/live smoke are not attempted
+  without reviewed Azure target/networking/cost/permission inputs. GitHub CI has
+  not been triggered or claimed green remotely.
 
 ## Contract decisions
 
@@ -66,17 +89,23 @@ tests, CI and consumers; the project/display name is `supply-chain-routing`.
 
 ## Validation status
 
-- Passed: `uv sync --extra dev`, `uv run ruff check .`,
-  `uv run ruff format --check .`, `uv run mypy src/`,
-  `uv run pytest -W error` (26 tests), warning-free coverage (70.47%), `uv build`.
-- Passed on Node 22.23.4: npm install/lock generation, lint, typecheck,
-  test (3 tests), production build and format check. Lockfiles use public npm/PyPI
-  registries. The host's default Node 23 is unsupported by upstream tools; use
-  Node 22 LTS (22.13+) or 24 LTS as documented.
-- Passed local smoke: API `/health/ready`, Vite index and Vite `/api/config`
-  reverse-proxy response. Smoke servers stopped after verification.
-- Blocked/deferred: Docker runtime/build checks; Docker Desktop daemon is not
-  available (named pipe connection failure; WSL Docker link is broken).
-  Dockerfiles and Nginx are scaffolds, not claimed container-runtime verified.
-- Terraform unchanged; infrastructure validation, Azure provisioning/deployment
-  and full application integration are explicitly excluded.
+- Passed: Ruff lint/format, mypy (45 source files), **109 warning-free Python
+  tests, 93.56% coverage**, wheel/source packaging.
+- Passed on Node 22.23.4: frontend lint, format, types, **15 component tests**,
+  production build, and **one real Chromium E2E test**. The build reports the
+  Azure Maps SDK bundle-size advisory (about 538 KB gzip); it is not suppressed.
+- Passed: standalone local API smoke (12 candidate routes, four allocations,
+  persisted progress); temporary API and browser test servers stopped.
+- Passed: non-root Nginx runtime (UID 101), configuration validation, web health,
+  and compiled index serving using prebuilt local assets. This is not a full
+  Dockerfile build; the host emitted AIO compatibility notices.
+- Passed: Terraform init/fmt/validate with zero errors/warnings, five mock plans,
+  recursive TFLint, three hook tests; workflow YAML and actionlint.
+- Blocked: full API/web Dockerfile builds, because daemon-side HTTPS requests to
+  package registries fail TLS handshakes. Native TLS did not fix the Python
+  failure; npm registry ping independently reproduces the daemon network issue.
+- Deferred: real Azure provisioning/deployment, live map/Cosmos/weather/RBAC/DNS
+  verification, scheduled cloud refresh, and deployed smoke. No push performed.
+- Browser dependencies were extracted into session-local storage after the host
+  lacked NSS/NSPR and sudo installation was unavailable; shared OS packages were
+  not changed. All temporary task containers and servers were stopped.

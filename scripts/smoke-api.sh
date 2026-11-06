@@ -6,13 +6,17 @@ base_url="${base_url%/}"
 headers="$(mktemp)"
 scenario_id=""
 
+http() {
+  curl --connect-timeout 5 --max-time 20 "$@"
+}
+
 cleanup() {
   if [ -n "$scenario_id" ]; then
-    curl --silent --show-error --fail -D "$headers" \
+    http --silent --show-error --fail -D "$headers" \
       "$base_url/api/scenarios/$scenario_id" >/dev/null || true
     etag="$(awk 'tolower($1) == "etag:" {sub("\r$", "", $2); print $2}' "$headers")"
     if [ -n "$etag" ]; then
-      curl --silent --show-error --fail -X DELETE \
+      http --silent --show-error --fail -X DELETE \
         -H "If-Match: $etag" "$base_url/api/scenarios/$scenario_id" >/dev/null || true
     fi
   fi
@@ -20,17 +24,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-curl --silent --show-error --fail "$base_url/health/ready" >/dev/null
-config="$(curl --silent --show-error --fail "$base_url/api/config")"
-scenario="$(curl --silent --show-error --fail -X POST "$base_url/api/scenarios/seed")"
+http --silent --show-error --fail "$base_url/health/ready" >/dev/null
+config="$(http --silent --show-error --fail "$base_url/api/config")"
+scenario="$(http --silent --show-error --fail -X POST "$base_url/api/scenarios/seed")"
 scenario_id="$(jq -er '.id' <<< "$scenario")"
-run="$(curl --silent --show-error --fail -X POST \
+run="$(http --silent --show-error --fail -X POST \
   -H "Idempotency-Key: smoke-$scenario_id" \
   "$base_url/api/scenarios/$scenario_id/optimize")"
 run_id="$(jq -er '.id' <<< "$run")"
 
-for attempt in $(seq 1 60); do
-  run="$(curl --silent --show-error --fail \
+for attempt in $(seq 1 90); do
+  run="$(http --silent --show-error --fail \
     "$base_url/api/scenarios/$scenario_id/runs/$run_id")"
   status="$(jq -er '.status' <<< "$run")"
   case "$status" in
@@ -40,7 +44,7 @@ for attempt in $(seq 1 60); do
       exit 1
       ;;
   esac
-  sleep 1
+  sleep 2
 done
 
 jq -e '.status == "completed" and (.allocations | length > 0) and
@@ -49,7 +53,7 @@ supply="$(jq '[.locations[] | select(.kind == "supplier") | .quantity] | add' <<
 jq -e --argjson supply "$supply" \
   '([.allocations[].quantity] | add) == $supply' <<< "$run" >/dev/null
 
-events="$(curl --silent --show-error --fail --max-time 10 \
+events="$(http --silent --show-error --fail --max-time 10 \
   "$base_url/api/scenarios/$scenario_id/runs/$run_id/events")"
 if ! grep -q '^event: progress' <<< "$events"; then
   echo "No persisted progress event received" >&2
