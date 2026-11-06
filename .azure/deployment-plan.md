@@ -1,6 +1,120 @@
-# Shipment-plan clarity deployment
+# Remembered Entra session deployment
 
 Status: Deployed
+
+## Current scope
+
+Update the existing Terraform/azd `demo` environment, subscription
+`0ec6c427-01d3-4462-ae56-fd9656157157`, East US 2, `rg-scroute-eus2`.
+Deploy web only via secure ACR remote build. Use MSAL-managed localStorage and
+Microsoft Entra's SSO cookie to restore returning sessions, with a single silent
+attempt and explicit sign-in fallback. Honor logout across reloads/tabs and
+avoid recursive app startup in silent-auth callback iframes.
+
+Do not store passwords/raw tokens in application cookies, change authentication
+flows/scopes, grant permissions, create secrets, or weaken MFA/Conditional Access.
+No new resources, dependencies, redirects or capacity. Keep API/refresh images,
+registration, browser Maps role and the authorized exception tags unchanged.
+Autopilot continues the existing demo update in the same Azure environment.
+
+## Current preparation checklist
+
+- [x] Inspect authentication/cache, callback bootstrap and current tests.
+- [x] Research official Microsoft MSAL cache and SSO documentation.
+- [x] Implement and verify remembered session, fallback and logout behavior.
+- [x] Run current azure-validate workflow and record proof.
+- [x] Preview/reconcile existing infrastructure, then confirm AcrPull.
+- [x] Deploy web only and verify ready revision, exact assets and auth smoke.
+
+## Functional verification
+
+71 React tests, frontend ESLint/Prettier, TypeScript and production build pass.
+Three real Chromium workflows pass against the unchanged deterministic local
+API. Synthetic Microsoft session coverage verifies local-cache reload/new-tab
+reuse, cookie-only restoration in a fresh context, no application bootstrap in
+callback iframes, explicit cross-tab logout and no silent reauthentication after
+logout. Normal shipment/disruption/profile workflows remain passing.
+No actual user's Entra session or cookie has been inspected; browser/tenant
+restrictions may still require interaction. The established commands/entrypoint
+remain valid, so no VS Code automation change is needed.
+
+## 7. Validation Proof
+
+Current evidence recorded: 2026-11-06T17:34:49-06:00.
+
+The current azure-validate workflow uses the existing Terraform/azd recipe.
+AZD installation, selected `demo` environment, authentication, subscription,
+tenant, location and official azure.yaml schema validation pass.
+`azd provision --preview --no-prompt` succeeds: zero additions, eight in-place
+diagnostic-destination drift reconciliations, zero destruction. No image,
+registration, role, network or identity change is proposed. Current preview:
+session `files/sso-provision-preview.log`.
+
+The complete `validate-terraform.sh infra` preflight passes all ten checks using
+the azd-generated `demo.conf.json` backend and `main.tfvars.json`. Authenticated
+state access, format/validate, real plan, state list and template/JSON checks
+pass with no errors or warnings. The temporary `infra/tfplan` was removed.
+`azd package --all --no-prompt` passes with secure remote ACR builds selected.
+Frontend lint/format, 71 React tests, TypeScript/build and three real Chromium
+workflows pass. Existing non-root Docker contexts and lockfiles are unchanged.
+
+Current inherited policy retrieval returns 97 assignments; all 14 application
+ARM resources retain the authorized `SecurityControl=Ignore` tag. Static role
+review confirms unchanged registry-scoped AcrPull for API/web/refresh, AcrPush
+for the deployer, Maps-account Data Reader and container-scoped native Cosmos
+Data Contributor for API/refresh, and render/traffic reads only for the browser
+identity. No additional permission, capacity or exception is requested.
+No personal interactive Entra session has been tested; tenant and browser
+policy still govern silent restoration.
+
+## All validation checks pass
+
+- [x] AZD installation, selected environment, authentication, subscription/location.
+- [x] Official azure.yaml schema validation.
+- [x] Aspire pre/post-provisioning checks not applicable.
+- [x] Non-destructive real provision preview.
+- [x] Frontend build and functional verification.
+- [x] Existing Docker contexts, non-root users and checked-in lockfiles unchanged.
+- [x] Secure remote-build mode package validation.
+- [x] Complete Terraform preflight including authenticated state and real plan.
+- [x] Existing policy/tag preservation and static data-plane role verification.
+
+## Remembered-session rollout result
+
+Verified: 2026-11-06T17:40:42-06:00.
+
+Web update deployed:
+https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+
+`azd provision --no-prompt` completed the reviewed eight in-place diagnostic
+reconciliations with zero additions/destruction. All three registry-scoped
+AcrPull assignments were confirmed before `azd deploy web --no-prompt`.
+Secure ACR remote build and deployment succeeded; `azd show` confirms endpoints.
+
+Web revision `ca-njk0ztnkmgrmn-web--azd-1794008368` equals latest ready and is
+healthy/running. Image:
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/web-demo:azd-deploy-1794008226`.
+The deployed `index-VCdgS9LU.js` and `index-D0OQ3mso.css` match the validated
+local build byte-for-byte. Live auth smoke passes: discovery/readiness available
+and anonymous, invalid and spoofed credentials rejected.
+Initial checks preceded revision readiness: readiness timed out and assets
+still belonged to the old revision. After the new revision became ready,
+standalone retries passed without configuration changes.
+
+API revision remains `ca-njk0ztnkmgrmn-api--azd-1794006389`, latest equals ready;
+API and refresh retain `api-demo:azd-deploy-1794006304`.
+Live role verification confirms unchanged Maps-account Data Reader for API/
+refresh, browser render/traffic reads only, and native Cosmos Data Contributor
+at the scenario-container scope. All 14 application ARM resources retain the
+authorized tag. No scopes, registration, scenarios or backend code changed.
+
+71 frontend tests and three synthetic/local Chromium workflows pass; no actual
+personal Entra login or browser-restart cookie persistence is claimed. Microsoft
+Stay signed in, browser cookie rules and tenant policy control continued SSO.
+
+## Previous shipment-plan clarity deployment (historical)
+
+Previous status: Deployed
 
 ## Current scope
 
@@ -50,7 +164,7 @@ Existing Azure context was rechecked: selected azd `demo`, subscription and
 tenant unchanged, East US 2, `rg-scroute-eus2`. Zero additional resources or
 capacity requested; no regional quota increase is needed.
 
-## 7. Validation Proof
+## Previous shipment-plan validation proof (historical)
 
 Current evidence recorded: 2026-11-06T17:18:27-06:00.
 

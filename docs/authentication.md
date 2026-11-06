@@ -50,6 +50,33 @@ build-time token is required. Redirects use the current web origin plus `/`;
 `localhost` and `127.0.0.1` are different origins. Production redirects must use
 HTTPS. Sign-out unmounts the workspace and invokes Entra logout.
 
+## Remembered sign-in and SSO
+
+The app uses MSAL's `localStorage` cache so a successful sign-in can be reused
+by return visits and other tabs on the same origin. On startup it first handles
+an OAuth redirect, then restores the active or single cached account. When no
+account is cached it makes one `ssoSilent` attempt using Microsoft's existing
+Entra session cookie. Missing/blocked cookies, consent, MFA or account-selection
+requirements fall back to the Sign in button without redirect loops. The root
+callback does not bootstrap the workspace inside a silent-auth iframe.
+
+Passwords and raw tokens are never put into application cookies. Microsoft owns
+the Entra SSO cookie; MSAL owns its browser cache and `msal.cache.encryption`
+cookie. In MSAL v4 the local cache normally uses an encryption key in a session
+cookie, so localStorage alone does not guarantee persistence after closing the
+whole browser. Choose **Stay signed in / Keep me signed in** if Microsoft offers
+it. Cookie restrictions, private browsing, session expiry and tenant Conditional
+Access/MFA policy can still require another interactive sign-in. This app does
+not override those policies or implement an indefinite session.
+
+**Sign out** immediately unmounts the workspace, clears MSAL's local account
+cache and the remembered scenario, and invokes Microsoft logout. A nonsecret
+`routing.signed-out` localStorage flag suppresses automatic restoration after
+explicit sign-out, including when Microsoft logout cannot finish. Other open
+tabs observe this flag and lock immediately. A subsequent successful interactive
+sign-in clears it. Neither this preference nor any other browser cache entry is
+trusted by the API in place of a validated bearer token.
+
 ## Account header and optional profile consent
 
 The same Fluent header labels offline mode as `Demo workspace`. Signed-in users
@@ -72,8 +99,8 @@ policy may require administrator approval; this application does not grant it.
 Denied consent and other Graph failures retain the ID-token/initials fallback.
 Fetched names, photos and Graph tokens are kept in memory only, not logged or
 persisted. Profile token requests disable MSAL token caching with `storeInCache`;
-the API sign-in session retains its existing session-storage cache, never
-localStorage, and is cleared on logout.
+the API sign-in session uses MSAL's shared localStorage cache for SSO and is
+cleared on logout. The app does not directly read or write MSAL token entries.
 Profile requests are aborted and photo object URLs revoked when the account
 header unmounts, including session expiry and logout.
 
@@ -110,6 +137,8 @@ file after use. Never disable JWT verification for smoke tests.
 
 References:
 [MSAL browser](https://learn.microsoft.com/entra/msal/javascript/browser/),
+[MSAL caching and cookies](https://learn.microsoft.com/entra/msal/javascript/browser/caching),
+[MSAL single sign-on](https://learn.microsoft.com/entra/msal/javascript/browser/single-sign-on),
 [MSAL multi-resource consent](https://learn.microsoft.com/entra/msal/javascript/browser/resources-and-scopes#consent),
 [Graph own profile](https://learn.microsoft.com/graph/api/user-get),
 [Graph profile photo](https://learn.microsoft.com/graph/api/profilephoto-get),

@@ -182,6 +182,8 @@ test("profile photo and Howdy greeting align on desktop and narrow screens", asy
                     getAllAccounts() {
                         return [{ homeAccountId: "browser-demo", name: "Fallback name" }];
                     }
+                    getActiveAccount() { return null; }
+                    setActiveAccount() {}
                     async acquireTokenSilent({scopes}) {
                         return { accessToken: scopes[0].includes("graph.microsoft.com") ? "graph-demo" : "api-demo" };
                     }
