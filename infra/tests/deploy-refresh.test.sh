@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 source = Path("infra/scripts/deploy-refresh.sh").read_text().split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
 environment = {
+    "AZURE_SUBSCRIPTION_ID": "test-subscription",
     "AZURE_RESOURCE_GROUP": "existing-rg",
     "AZURE_CONTAINER_APP_API_NAME": "api",
     "AZURE_CONTAINER_APP_WEB_NAME": "web",
@@ -24,14 +25,15 @@ environment = {
 
 
 class HookTests(unittest.TestCase):
-    def invoke(self, service: str, image: str) -> list:
+    def invoke(self, service: str, image: str, command: list | None = None) -> list:
         patches = []
         app = {
             "id": f"/apps/{service}",
             "properties": {"template": {
                 "revisionSuffix": "old-revision",
                 "containers": [{
-                    "name": service, "image": image, "command": ["python", "-c", "bootstrap"],
+                    "name": service, "image": image,
+                    "command": command if command is not None else ["python", "-c", "bootstrap"],
                     "env": [{"name": "AZURE_CLIENT_ID", "value": "api-identity"}],
                     "probes": [{"type": "Readiness"}],
                 }],
@@ -47,11 +49,14 @@ class HookTests(unittest.TestCase):
         }
 
         def fake_azure(args: list, **kwargs: object) -> subprocess.CompletedProcess:
-            if args[1:3] == ["containerapp", "show"]:
+            self.assertEqual(args[1:3], ["rest", "--method"])
+            uri = args[args.index("--uri") + 1]
+            self.assertTrue(uri.endswith("?api-version=2025-01-01"))
+            if args[3] == "get" and "/containerApps/" in uri:
                 result = copy.deepcopy(app)
-            elif args[1:4] == ["containerapp", "job", "show"]:
+            elif args[3] == "get" and "/jobs/" in uri:
                 result = copy.deepcopy(job)
-            elif args[1:3] == ["rest", "--method"]:
+            elif args[3] == "patch":
                 patches.append((args[args.index("--uri") + 1], json.loads(args[args.index("--body") + 1])))
                 result = {}
             else:
@@ -70,7 +75,7 @@ class HookTests(unittest.TestCase):
         self.assertEqual(len(patches), 2)
         api_template = patches[0][1]["properties"]["template"]
         self.assertNotIn("revisionSuffix", api_template)
-        self.assertEqual(api_template["containers"][0]["command"], [])
+        self.assertEqual(api_template["containers"][0]["command"], ["supply-chain-routing"])
         self.assertEqual(api_template["containers"][0]["probes"], [{"type": "Readiness"}])
         job_container = patches[1][1]["properties"]["template"]["containers"][0]
         self.assertEqual(job_container["image"], image)
@@ -81,12 +86,28 @@ class HookTests(unittest.TestCase):
     def test_web_does_not_modify_refresh_job(self) -> None:
         patches = self.invoke("web", "demo.azurecr.io/web@sha256:abc123")
         self.assertEqual(len(patches), 1)
-        self.assertTrue(patches[0][0].startswith("/apps/web?"))
+        self.assertEqual(
+            patches[0][1]["properties"]["template"]["containers"][0]["command"],
+            ["/docker-entrypoint.sh", "nginx", "-g", "daemon off;"],
+        )
+
+    def test_already_activated_web_command_is_not_updated(self) -> None:
+        patches = self.invoke(
+            "web", "demo.azurecr.io/web:v1",
+            command=["/docker-entrypoint.sh", "nginx", "-g", "daemon off;"],
+        )
+        self.assertEqual(patches, [])
 
     def test_rejects_mutable_or_foreign_images(self) -> None:
         for image in ["demo.azurecr.io/api:latest", "demo.azurecr.io/api", "foreign.azurecr.io/api:v1"]:
             with self.subTest(image=image), self.assertRaises(SystemExit):
                 self.invoke("api", image)
+
+    def test_reports_azure_failure_without_dumping_request_arguments(self) -> None:
+        with patch.dict(os.environ, environment), patch.object(sys, "argv", ["hook", "api"]), patch(
+            "subprocess.run", return_value=subprocess.CompletedProcess([], 1, "", "Azure rejected the request")
+        ), self.assertRaisesRegex(SystemExit, "^Azure rejected the request$"):
+            exec(compile(source, "deploy-refresh.sh", "exec"), {})
 
 
 unittest.main()

@@ -77,6 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: sh infra/tests/nginx-proxy.test.sh
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:

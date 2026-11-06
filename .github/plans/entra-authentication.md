@@ -36,20 +36,31 @@ All signed-in tenant users share the bounded demo scenarios, as before.
   tests, Chromium end-to-end walkthrough, both builds, lint/format/types and
   zero-warning Terraform validation/10 mocked plans/TFLint. Real authenticated
   local proxy smoke rejects anonymous, invalid and spoofed credentials.
-- [ ] Azure (main worktree; depends on all implementation/validation):
+- [x] Azure (main worktree; depends on all implementation/validation):
   establish dedicated azd/state context, validate quotas/policy, provision with
   azd (including registration), deploy both services and verify anonymous API
   rejection, discovery, readiness and actual deployed sign-in redirect behavior.
   Record any interactive sign-in verification limitation explicitly.
-  BLOCKED: inherited `MCAPSGovDeployPolicies` forcibly disables public access on
-  the new state account. Blob container creation and azd preview fail with 403.
-  Both dedicated groups and empty `stscroute0ec6c4` exist; no registration or app
-  resources were created. Cosmos has an equivalent policy. Resume only with
-  approved private/NSP networking and reachable state; do not override policies.
-  RESUMING: user explicitly authorized `SecurityControl=Ignore` for demo resources.
-  Persist the tag in Terraform, tag the dedicated groups/state account, restore
-  Entra-protected state access, repeat validation and deploy.
-  State access is restored and all validation passes. The real preview contains
-  55 additions, no changes/deletions; all 13 taggable app ARM resources carry the
-  requested tag. azd provisioning is running; registration and app rollout still
-  require live verification.
+  Complete: the operator-authorized `SecurityControl=Ignore` tag resolved the
+  inherited network-policy blocker. All 55 resources provisioned successfully;
+  all 14 ARM resources, including the automatically created Insights alert, and
+  the dedicated groups/state account have the tag. State and Cosmos retain
+  Entra-only access with shared keys disabled; anonymous Blob access is disabled.
+  Both immutable images built remotely in ACR and deployed. API/web revisions
+  are healthy; the refresh job uses the exact API image and a manual execution
+  succeeded. Live AcrPull, Maps reader/render and Cosmos data roles are verified.
+  Deployment fixes cover pinned ARM read/write schemas, explicit entry points,
+  and the ACA upstream Host without changing local Origin behavior. Five hook
+  tests and two real Nginx proxy cases pass; proxy regression runs in CI/VS Code.
+  Public readiness/discovery pass; anonymous, invalid and spoofed credentials
+  receive 401. Chromium confirms the sign-in gate, correct tenant/client/redirect,
+  authorization-code PKCE and Microsoft account prompt. Interactive user login
+  and an authenticated cloud route walkthrough were not performed.
+
+## Live deployment
+
+- Web: https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+- Entra client ID: `2c924cbc-ad1d-4731-a699-8705627a882c`.
+- Registration is single-tenant, v2 delegated `access_as_user`, with no secrets.
+- `azd show` resolves both endpoints after the pre-created app group receives
+  its `azd-env-name=demo` metadata tag; API ingress remains internal.

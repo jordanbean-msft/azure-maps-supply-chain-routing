@@ -50,6 +50,10 @@ resource group's location. State is
 `${RS_PROJECT_NAME}/${AZURE_ENV_NAME}.tfstate`; azd substitutes backend values
 from `infra/provider.conf.json`. The backend uses Entra, not storage keys.
 
+Merge `azd-env-name=<AZURE_ENV_NAME>` into the pre-created application group's
+tags so `azd show` can discover its endpoints. Preserve existing tags, including
+any explicitly authorized policy-exception tag.
+
 ### Enforced organization networking
 
 Check inherited management-group policies, not only subscription assignments.
@@ -181,8 +185,12 @@ deploy; its initial bounded executions can fail because the bootstrap image
 does not contain the refresh module.
 
 Service postdeploy hooks run `infra/scripts/deploy-refresh.sh api|web`.
-They remove only the provisioning command override, activating the image's
-entry point. The API hook reads the **deployed API image** from its Azure
+They replace the provisioning command with the image's explicit entry point:
+`supply-chain-routing` for the API, and `/docker-entrypoint.sh nginx -g "daemon off;"`
+for the web container. Empty command overrides are not reliably cleared by ARM
+or the Azure CLI. Template reads and writes use the same pinned ARM API version
+to avoid unsupported fields from newer CLI defaults.
+The API hook reads the **deployed API image** from its Azure
 resource and updates the job to that exact image reference with
 `python -m template_repository.refresh`. It neither rebuilds a job image nor
 changes the job identity/environment. The hook rejects `latest`, untagged and
@@ -197,6 +205,12 @@ failed API synchronization using `azd hooks run postdeploy --service api` or,
 with azd environment values exported, `sh infra/scripts/deploy-refresh.sh api`.
 The postdeploy patch uses Azure CLI authentication, so both CLI and azd must
 be authenticated under the deployment identity.
+
+Nginx forwards the upstream Host for Azure Container Apps targets because
+internal ingress routes by hostname. Local targets retain the browser Host for
+same-origin checks. Both retain the original Origin header. Run
+`sh infra/tests/nginx-proxy.test.sh` to verify these behaviors with real Nginx;
+the test is also available as the `frontend:proxy-test` VS Code task and in CI.
 
 ## Runtime configuration and outputs
 

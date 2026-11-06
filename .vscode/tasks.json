@@ -248,6 +248,13 @@
       "problemMatcher": []
     },
     {
+      "label": "frontend:proxy-test",
+      "type": "shell",
+      "command": "sh infra/tests/nginx-proxy.test.sh",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
       "label": "infra:lint",
       "dependsOn": ["infra:fmt", "infra:validate", "infra:tflint"],
       "dependsOrder": "sequence",

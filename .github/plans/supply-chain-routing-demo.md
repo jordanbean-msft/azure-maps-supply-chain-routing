@@ -2,8 +2,10 @@
 
 Approved scope and source: session `a951a2e4-af67-411c-bb1a-0724e0d90e82/plan.md`.
 API, frontend, and infrastructure changes were implemented in isolated worktrees
-and integrated on main. Local application validation is complete; full container
-builds and live Azure verification remain explicitly blocked/deferred below.
+and integrated on main. Application images now build remotely in ACR and run in
+Azure with Entra authentication. The current deployment record is
+`.github/plans/entra-authentication.md`; authenticated cloud route acceptance
+still requires an interactive tenant user.
 Preserve `template_repository`
 and the `template-repository` CLI alias to avoid breaking existing imports,
 tests, CI and consumers; the project/display name is `supply-chain-routing`.
@@ -27,7 +29,8 @@ tests, CI and consumers; the project/display name is `supply-chain-routing`.
   throttling, missing routes and partial failures. Implemented with stable
   v2025 routing and Weather Along Route 1.1; actual road geometry, ETA offsets,
   forecast-horizon warnings, and current/future departure handling are tested.
-  Live account behavior is not verified.
+  Live Maps identity assignments are verified; route/traffic/weather calls await
+  authenticated cloud functional acceptance.
 - [x] **4. optimization-engine — Implement cost and optimization engine.**
   Backend owner; depends on 1. Add transparent costs, min-cost-flow allocation and
   alternatives. Test infeasibility, capacity, prohibited lanes and deterministic
@@ -53,25 +56,26 @@ tests, CI and consumers; the project/display name is `supply-chain-routing`.
   Use pre-created resource group, managed identity, internal API ingress, web
   public ingress. Validate Terraform fmt/init/validate with zero warnings.
   Implemented. Terraform init/fmt/validate (zero warnings), five mocked plans,
-  TFLint and three image synchronization hook tests pass. No Azure resources
-  provisioned; full container build verification remains blocked below.
+  TFLint and image synchronization hook tests pass. Azure provisioning and remote
+  image builds are now verified; see the authentication deployment record.
 - [x] **8. observability-resilience — Add observability, resilience, and cost controls.**
   Integration owner; depends on 3, 5, 7. Add telemetry, request correlation,
   quotas, cache/TTL, health dependency checks and alerts. Verify actionable failure
   telemetry and transaction limits. Structured logging, correlation, Azure
   Monitor instrumentation, service diagnostics, bounds, caching, TTL, and
-  failure/readiness tests are integrated. Live telemetry export is not verified.
+  failure/readiness tests are integrated. Live API startup confirms successful
+  Azure Monitor telemetry export and managed-identity Cosmos initialization.
 - [ ] **9. delivery-documentation — Complete deployment validation.**
   Integration owner; depends on all preceding work. Expand CI, OIDC deployment,
-  architecture/setup/demo documentation and deployed smoke tests. Full CI/container
-  and deployment verification are blocked/deferred. CI jobs, OIDC workflows,
+  architecture/setup/demo documentation and deployed smoke tests. CI jobs, OIDC workflows,
   architecture/research/operations/configuration docs, VS Code tasks/debuggers,
   and the bounded local/deployed API smoke script are implemented and checked.
-  Local browser E2E passes. Full image builds fail at package registry TLS
-  handshakes inside the Docker daemon (Python wheel host and npm registry);
-  TLS verification was not disabled. Provisioning/live smoke are not attempted
-  without reviewed Azure target/networking/cost/permission inputs. GitHub CI has
-  not been triggered or claimed green remotely.
+  Local browser E2E passes. ACR remote builds resolve the local daemon TLS blocker
+  without disabling certificate validation. Provisioning, healthy app revisions,
+  the live authentication-boundary smoke, Chromium sign-in entry and a cloud
+  refresh execution now pass. Remaining acceptance is the signed-in cloud
+  seed/optimize/compare workflow, requiring a real delegated user session.
+  GitHub CI has not been triggered or claimed green remotely.
 
 ## Contract decisions
 
@@ -87,7 +91,7 @@ tests, CI and consumers; the project/display name is `supply-chain-routing`.
   and `/health` to `API_INTERNAL_URL` and disables buffering for SSE.
 - Backend handoff API contract is in the session `files/api-contract.md`.
 
-## Validation status
+## Original validation status (historical)
 
 - Passed: Ruff lint/format, mypy (45 source files), **109 warning-free Python
   tests, 93.56% coverage**, wheel/source packaging.
