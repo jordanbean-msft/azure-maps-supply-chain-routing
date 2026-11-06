@@ -45,7 +45,7 @@ it("clears invalid disruption targets when removing a location or changing its k
         />,
     );
     fireEvent.click(
-        screen.getByRole("button", { name: "Remove Chicago supply" }),
+        screen.getByRole("button", { name: "Remove Houston supply" }),
     );
     expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -59,4 +59,31 @@ it("clears invalid disruption targets when removing a location or changing its k
     expect(onChange).toHaveBeenLastCalledWith(
         expect.objectContaining({ disruptions: [facility, weather] }),
     );
+});
+
+it("adds new facilities in the Houston area and offers map selection", () => {
+    const change = vi.fn();
+    const select = vi.fn();
+    render(
+        <ScenarioEditor
+            scenario={scenario}
+            config={config}
+            routes={run.routes}
+            disabled={false}
+            onChange={change}
+            onSelectLocation={select}
+        />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "+ Supplier" }));
+    const added = change.mock.calls[0][0].locations.at(-1);
+    expect(added.latitude).toBeGreaterThan(29);
+    expect(added.latitude).toBeLessThan(30.5);
+    expect(added.longitude).toBeGreaterThan(-96);
+    expect(added.longitude).toBeLessThan(-94.5);
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: `Select ${scenario.locations[0].name} on map`,
+        }),
+    );
+    expect(select).toHaveBeenCalledWith(scenario.locations[0].id);
 });

@@ -19,7 +19,9 @@ npm --prefix frontend run dev
 
 Open http://localhost:5173. Vite proxies `/api` to http://localhost:8000;
 interactive API documentation is at http://localhost:8000/docs.
-Use **Load demo** in the UI to create an editable synthetic scenario.
+Use **Load Houston sample** to create an editable network of suppliers in
+Houston, Katy and Pasadena, and factories in Baytown and Sugar Land. Existing
+saved scenarios are not replaced.
 
 ## Modes
 
@@ -77,16 +79,28 @@ private file containing a valid delegated API token. CI instead uses
 
 ## Demo walkthrough
 
-1. Load a seed scenario and inspect supplier shipment units and factory capacity.
-2. Run optimization; compare allocated routes, ETA, and itemized estimated cost.
-3. Select a different road alternative and inspect its geometry/metrics.
-4. Add a facility delay or simulated closure and optimize again.
+1. Load the Houston sample. Use **Network** to edit supply, capacity and cost assumptions.
+2. Save and optimize; compare allocated routes, ETA, and itemized estimated cost.
+3. Select a route on the map or in the table. In live mode, use **Fit selected**,
+   traffic overlays, satellite view and facility popups; drag markers to edit coordinates.
+4. Open **Disruptions**, choose **Close a route** or **Delay a facility**, then
+   select a named route or facility on the map. Confirm the orange target preview
+   before applying. Optimize again to update the displayed estimates.
 5. Change fuel price or delay penalty to show an economically different ranking.
 6. Save changes and reload the scenario while the API process is still running.
 
 In live mode, distinguish reported traffic/weather from assumptions and
 simulations. Periodic refreshes consume billable API calls; pause them when not
-demonstrating live behavior.
+demonstrating live behavior using **Refresh settings**. Route closure excludes
+only the selected candidate, not all alternatives in its lane. Facility delays
+affect every route connected to that facility; weather and fuel changes affect
+the entire network. These changes do not modify real Azure Maps road conditions.
+
+The square-corner Microsoft Fluent UI workspace uses a planning sidebar and
+a dominant map. On narrow screens the map and results appear first. Signed-in
+users see **Howdy First Last!** and their Microsoft profile photo after delegated
+`User.Read` consent; missing photos fall back to initials. See
+[authentication](authentication.md) for existing-session consent behavior.
 
 ## VS Code and containers
 

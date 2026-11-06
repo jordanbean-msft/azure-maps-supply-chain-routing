@@ -1,17 +1,39 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+    Badge,
+    Button,
+    Checkbox,
+    Field,
+    MessageBar,
+    MessageBarBody,
+    ProgressBar,
+    Select,
+    Tab,
+    TabList,
+} from "@fluentui/react-components";
+import { ArrowClockwiseRegular, PlayRegular } from "@fluentui/react-icons";
 import DisruptionEditor from "./DisruptionEditor";
 import MapView from "./MapView";
 import RouteResults from "./RouteResults";
 import ScenarioEditor from "./ScenarioEditor";
+import type { MapTarget } from "./mapTarget";
 import { useWorkspace } from "./useWorkspace";
-import type { Location, RouteCandidate } from "./types";
+import type { Disruption, Location, RouteCandidate } from "./types";
 import "./style.css";
 
 const noRoutes: RouteCandidate[] = [];
+const noLocations: Location[] = [];
 
 export default function App() {
     const workspace = useWorkspace();
     const [selected, setSelected] = useState<string | null>(null);
+    const [selectedLocation, setSelectedLocation] = useState<string | null>(
+        null,
+    );
+    const [target, setTarget] = useState<MapTarget | null>(null);
+    const [disruptionKind, setDisruptionKind] =
+        useState<Disruption["kind"]>("road_closure");
+    const [tab, setTab] = useState("network");
     const [refreshSeconds, setRefreshSeconds] = useState(60);
     const [paused, setPaused] = useState(false);
     const running =
@@ -19,6 +41,24 @@ export default function App() {
         workspace.run?.status === "running";
     const locked = workspace.busy || running;
     const { refresh, scenario, edit } = workspace;
+    const routes = workspace.result?.routes ?? noRoutes;
+    const selectedId = routes.some((route) => route.id === selected)
+        ? selected
+        : (routes[0]?.id ?? null);
+    const facilityId = scenario?.locations.some(
+        (location) => location.id === selectedLocation,
+    )
+        ? selectedLocation
+        : null;
+    const validTarget =
+        target?.kind === "network" ||
+        (target?.kind === "route" &&
+            routes.some((route) => route.id === target.id)) ||
+        (target?.kind === "facility" &&
+            scenario?.locations.some((location) => location.id === target.id))
+            ? target
+            : null;
+
     const move = useCallback(
         (location: Location) => {
             if (scenario)
@@ -31,6 +71,44 @@ export default function App() {
         },
         [scenario, edit],
     );
+    const selectRoute = useCallback(
+        (id: string) => {
+            setSelected(id);
+            setSelectedLocation(null);
+            if (disruptionKind === "road_closure")
+                setTarget({ kind: "route", id });
+        },
+        [disruptionKind],
+    );
+    const selectLocation = useCallback(
+        (id: string) => {
+            setSelectedLocation(id);
+            if (disruptionKind === "facility_delay")
+                setTarget({ kind: "facility", id });
+        },
+        [disruptionKind],
+    );
+    const chooseTarget = (next: MapTarget | null) => {
+        setTarget(next);
+        if (next?.kind === "route") {
+            setSelected(next.id);
+            setSelectedLocation(null);
+        }
+        if (next?.kind === "facility") setSelectedLocation(next.id);
+    };
+    const changeKind = (kind: Disruption["kind"]) => {
+        setDisruptionKind(kind);
+        setTarget(
+            kind === "weather" || kind === "fuel_price"
+                ? { kind: "network", id: null }
+                : kind === "road_closure" && selectedId
+                  ? { kind: "route", id: selectedId }
+                  : kind === "facility_delay" && facilityId
+                    ? { kind: "facility", id: facilityId }
+                    : null,
+        );
+    };
+
     useEffect(() => {
         if (paused || !scenario || refreshSeconds < 30) return;
         const interval = window.setInterval(() => {
@@ -39,299 +117,273 @@ export default function App() {
         }, refreshSeconds * 1000);
         return () => window.clearInterval(interval);
     }, [paused, scenario?.id, refreshSeconds, refresh, scenario]);
-    const selectedId = workspace.result?.routes.some(
-        (route) => route.id === selected,
-    )
-        ? selected
-        : (workspace.result?.routes[0]?.id ?? null);
 
     return (
-        <main className="app-shell">
-            <header className="masthead">
-                <a
-                    className="brand"
-                    href="#main-content"
-                    aria-label="Supply Chain Routing home"
-                >
-                    <span className="brand-symbol" aria-hidden="true">
-                        ↗
-                    </span>
-                    <span>
-                        SUPPLY CHAIN
-                        <span className="brand-sub">ROUTING LAB</span>
-                    </span>
-                </a>
-                <div className="header-note">
-                    Strategic lane planning<span>Powered by Azure Maps</span>
+        <main className="app-shell" id="main-content">
+            <section
+                className="workspace-toolbar"
+                aria-label="Scenario actions"
+            >
+                <div className="scenario-heading">
+                    <h1>{scenario?.name ?? "Houston supply network"}</h1>
+                    {scenario && (
+                        <Badge
+                            appearance="tint"
+                            color={workspace.dirty ? "warning" : "subtle"}
+                        >
+                            {workspace.dirty ? "Unsaved edits" : "Saved"}
+                        </Badge>
+                    )}
                 </div>
-            </header>
-            <section className="hero" id="main-content">
-                <div>
-                    <p className="eyebrow">FROM SUPPLY TO POSSIBILITY</p>
-                    <h1>
-                        A clearer route to
-                        <br />
-                        <em>better decisions.</em>
-                    </h1>
-                    <p className="hero-copy">
-                        Build your network. Compare the trade-offs. See how
-                        every mile, minute, and disruption changes the plan.
-                    </p>
-                </div>
-                <div className="hero-action">
-                    <button
-                        type="button"
-                        className="primary large"
+                <div className="actions">
+                    <Button
                         disabled={
                             !workspace.config || locked || workspace.dirty
                         }
                         onClick={() => {
                             setSelected(null);
+                            setSelectedLocation(null);
+                            setTarget(null);
+                            setDisruptionKind("road_closure");
+                            setTab("network");
                             void workspace.seed();
                         }}
                     >
-                        Load seed scenario <span aria-hidden="true">↗</span>
-                    </button>
-                    <span>
-                        Editable suppliers & factories · no credentials in demo
-                        mode
-                    </span>
-                </div>
-            </section>
-
-            <div className="mode-banner" role="status">
-                {!workspace.config
-                    ? "Connecting to API…"
-                    : workspace.config.mode === "demo"
-                      ? "SIMULATION MODE — deterministic simulated routing. No live traffic or weather. In-memory scenarios can expire on restart."
-                      : `LIVE MODE — Azure Maps ${workspace.config.maps_available ? "available" : "not available"}. Routing ${workspace.config.routing_available ? "available" : "unavailable"}; weather and tolls remain estimates.`}
-            </div>
-            {workspace.error && (
-                <div role="alert" className="error-banner">
-                    <strong>Action needed.</strong> {workspace.error}
-                </div>
-            )}
-            {!scenario && (
-                <section className="welcome panel">
-                    <p className="eyebrow">START WITH A NETWORK</p>
-                    <h2>Your next decision starts here.</h2>
-                    <p>
-                        Load the seed scenario above to explore editable supply,
-                        factory capacity, alternate routes, and transparent
-                        shipment costs.
-                    </p>
-                    <div className="welcome-steps">
-                        <span>
-                            <b>01</b> Define the network
-                        </span>
-                        <span>
-                            <b>02</b> Optimize the lanes
-                        </span>
-                        <span>
-                            <b>03</b> Test a disruption
-                        </span>
-                    </div>
-                </section>
-            )}
-            {scenario && workspace.config && (
-                <>
-                    <section
-                        className="workspace-toolbar"
-                        aria-label="Scenario actions"
-                    >
-                        <div>
-                            <strong>{scenario.name}</strong>
-                            <span
-                                className={`badge ${workspace.dirty ? "amber" : ""}`}
-                            >
-                                {workspace.dirty ? "Unsaved edits" : "Saved"}
-                            </span>
-                            <small>Scenario {scenario.id}</small>
-                        </div>
-                        <div className="actions">
-                            <button
+                        Load Houston sample
+                    </Button>
+                    {scenario && (
+                        <>
+                            <Button
                                 type="submit"
                                 form="scenario-form"
                                 disabled={!workspace.dirty || locked}
                             >
                                 Save changes
-                            </button>
-                            <button
-                                type="button"
+                            </Button>
+                            <Button
+                                icon={<ArrowClockwiseRegular />}
                                 disabled={locked}
                                 onClick={() => void refresh(true)}
                             >
                                 {workspace.dirty
                                     ? "Discard edits & reload"
                                     : "Reload server version"}
-                            </button>
-                            <button
-                                type="button"
-                                className="primary"
+                            </Button>
+                            <Button
+                                appearance="primary"
+                                icon={<PlayRegular />}
                                 disabled={
                                     locked ||
                                     workspace.dirty ||
-                                    !workspace.config.routing_available
+                                    !workspace.config?.routing_available
                                 }
                                 onClick={() => void workspace.optimize()}
                             >
                                 {running ? "Optimizing…" : "Optimize network"}
-                            </button>
-                        </div>
-                    </section>
-                    <section
-                        className="refresh-bar"
-                        aria-label="Live refresh controls"
-                    >
-                        <span>
-                            Last updated:{" "}
-                            <time dateTime={workspace.lastUpdated ?? undefined}>
-                                {workspace.lastUpdated
-                                    ? new Date(
-                                          workspace.lastUpdated,
-                                      ).toLocaleTimeString()
-                                    : "not yet"}
-                            </time>
-                        </span>
-                        <label>
-                            Refresh interval
-                            <select
-                                value={refreshSeconds}
-                                onChange={(e) =>
-                                    setRefreshSeconds(Number(e.target.value))
-                                }
-                            >
-                                <option value={60}>60 seconds</option>
-                                <option value={120}>2 minutes</option>
-                                <option value={300}>5 minutes</option>
-                            </select>
-                        </label>
-                        <label className="checkbox">
-                            <input
-                                type="checkbox"
-                                checked={paused}
-                                onChange={(e) => setPaused(e.target.checked)}
-                            />{" "}
-                            Pause auto-refresh
-                        </label>
-                        <button
-                            type="button"
-                            className="quiet"
-                            disabled={locked || workspace.dirty}
-                            onClick={() => void refresh(false, true)}
-                        >
-                            Refresh & optimize now
-                        </button>
-                        <small>
-                            {workspace.dirty
-                                ? "Refresh paused to protect unsaved edits."
-                                : running
-                                  ? "Refresh waits for the active run."
-                                  : "Visible tabs only; refresh re-optimizes saved inputs. Live requests may incur Azure charges."}
-                        </small>
-                    </section>
-                    {workspace.stale && (
-                        <p className="notice" role="status">
-                            Results may be stale: inputs changed or a run is in
-                            progress. Save edits and optimize to generate a
-                            matching snapshot.
-                        </p>
+                            </Button>
+                        </>
                     )}
-                    {workspace.run && (
-                        <section
-                            className="run-status"
-                            aria-label="Optimization progress"
-                            aria-live="polite"
-                        >
-                            <div>
-                                <strong>
-                                    {workspace.run.status.toUpperCase()} ·{" "}
-                                    {workspace.run.stage.replaceAll("_", " ")}
-                                </strong>
-                                <span>{workspace.connection}</span>
-                            </div>
-                            <progress
-                                value={workspace.run.progress}
-                                max={1}
-                                aria-label="Optimization completion"
-                            />
-                            <span>
-                                {Math.round(workspace.run.progress * 100)}%
-                            </span>
-                        </section>
-                    )}
-                    <div className="workspace-grid">
-                        <section
-                            className="panel editor-panel"
-                            aria-labelledby="editor-title"
-                        >
-                            <div className="panel-heading">
-                                <div>
-                                    <p className="eyebrow">01 / DEFINE</p>
-                                    <h2 id="editor-title">Your network</h2>
-                                </div>
-                            </div>
-                            <form
-                                id="scenario-form"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    void workspace.save();
-                                }}
-                            >
-                                <ScenarioEditor
-                                    scenario={scenario}
-                                    config={workspace.config}
-                                    disabled={locked}
-                                    routes={
-                                        workspace.result?.routes ?? noRoutes
-                                    }
-                                    onChange={workspace.edit}
-                                />
-                                <button
-                                    className="primary editor-save"
-                                    type="submit"
-                                    disabled={!workspace.dirty || locked}
-                                >
-                                    Save scenario
-                                </button>
-                            </form>
-                        </section>
-                        <div className="analysis-column">
-                            <MapView
-                                mapsAvailable={workspace.config.maps_available}
-                                locations={scenario.locations}
-                                routes={workspace.result?.routes ?? noRoutes}
-                                selected={selectedId}
-                                disabled={locked}
-                                onSelect={setSelected}
-                                onMove={move}
-                            />
-                            <DisruptionEditor
-                                scenario={scenario}
-                                result={workspace.result}
-                                disabled={locked || workspace.dirty}
-                                onAdd={workspace.addDisruption}
-                                onRemove={workspace.removeDisruption}
-                            />
-                        </div>
-                    </div>
-                    <RouteResults
-                        scenario={workspace.resultScenario ?? scenario}
-                        result={workspace.result}
-                        previous={workspace.previous}
-                        selected={selectedId}
-                        onSelect={setSelected}
-                        stale={workspace.stale}
-                    />
-                </>
+                </div>
+            </section>
+
+            <div className="workspace-status">
+                <span role="status">
+                    {!workspace.config
+                        ? "Connecting to API…"
+                        : workspace.config.mode === "demo"
+                          ? "SIMULATION MODE · No live traffic or weather. Scenarios use temporary memory."
+                          : `LIVE MODE · Azure Maps ${workspace.config.maps_available ? "available" : "unavailable"}. Weather delays and tolls are estimates.`}
+                </span>
+                {workspace.lastUpdated && (
+                    <span>
+                        Updated{" "}
+                        <time dateTime={workspace.lastUpdated}>
+                            {new Date(
+                                workspace.lastUpdated,
+                            ).toLocaleTimeString()}
+                        </time>
+                    </span>
+                )}
+            </div>
+            {workspace.error && (
+                <MessageBar intent="error" role="alert">
+                    <MessageBarBody>{workspace.error}</MessageBarBody>
+                </MessageBar>
             )}
+            {workspace.stale && (
+                <MessageBar intent="warning">
+                    <MessageBarBody>
+                        Results may be stale. Save edits and optimize to update
+                        the map and costs.
+                    </MessageBarBody>
+                </MessageBar>
+            )}
+            {workspace.run && (
+                <section
+                    className="run-status"
+                    aria-label="Optimization progress"
+                    aria-live="polite"
+                >
+                    <span>
+                        {workspace.run.status.toUpperCase()} ·{" "}
+                        {workspace.run.stage.replaceAll("_", " ")}
+                    </span>
+                    <ProgressBar
+                        value={workspace.run.progress}
+                        aria-label="Optimization completion"
+                    />
+                    <span>{workspace.connection}</span>
+                </section>
+            )}
+
+            <div className="planning-grid">
+                <aside
+                    className="planning-sidebar"
+                    aria-label="Planning controls"
+                >
+                    {scenario && workspace.config ? (
+                        <>
+                            <TabList
+                                selectedValue={tab}
+                                onTabSelect={(_, data) =>
+                                    setTab(String(data.value))
+                                }
+                                aria-label="Planning tools"
+                            >
+                                <Tab value="network">Network</Tab>
+                                <Tab value="disruptions">Disruptions</Tab>
+                            </TabList>
+                            <div
+                                hidden={tab !== "network"}
+                                className="sidebar-content"
+                            >
+                                <form
+                                    id="scenario-form"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+                                        void workspace.save();
+                                    }}
+                                >
+                                    <ScenarioEditor
+                                        scenario={scenario}
+                                        config={workspace.config}
+                                        disabled={locked}
+                                        routes={routes}
+                                        onChange={workspace.edit}
+                                        onSelectLocation={selectLocation}
+                                        selectedLocation={facilityId}
+                                    />
+                                    <Button
+                                        appearance="primary"
+                                        className="editor-save"
+                                        type="submit"
+                                        disabled={!workspace.dirty || locked}
+                                    >
+                                        Save scenario
+                                    </Button>
+                                </form>
+                            </div>
+                            <div
+                                hidden={tab !== "disruptions"}
+                                className="sidebar-content"
+                            >
+                                <DisruptionEditor
+                                    scenario={scenario}
+                                    result={workspace.result}
+                                    kind={disruptionKind}
+                                    onKindChange={changeKind}
+                                    target={validTarget}
+                                    onTargetChange={chooseTarget}
+                                    disabled={locked || workspace.dirty}
+                                    onAdd={workspace.addDisruption}
+                                    onRemove={workspace.removeDisruption}
+                                />
+                            </div>
+                            <details className="refresh-settings">
+                                <summary>Refresh settings</summary>
+                                <Field label="Refresh interval">
+                                    <Select
+                                        value={refreshSeconds}
+                                        onChange={(event) =>
+                                            setRefreshSeconds(
+                                                Number(event.target.value),
+                                            )
+                                        }
+                                    >
+                                        <option value={60}>60 seconds</option>
+                                        <option value={120}>2 minutes</option>
+                                        <option value={300}>5 minutes</option>
+                                    </Select>
+                                </Field>
+                                <Checkbox
+                                    label="Pause auto-refresh"
+                                    checked={paused}
+                                    onChange={(_, data) =>
+                                        setPaused(data.checked === true)
+                                    }
+                                />
+                                <Button
+                                    disabled={locked || workspace.dirty}
+                                    onClick={() => void refresh(false, true)}
+                                >
+                                    Refresh & optimize now
+                                </Button>
+                                <p className="muted">
+                                    {workspace.dirty
+                                        ? "Refresh paused to protect unsaved edits."
+                                        : running
+                                          ? "Refresh waits for the active run."
+                                          : "Visible tabs only. Live requests may incur Azure charges."}
+                                </p>
+                            </details>
+                        </>
+                    ) : (
+                        <div className="sidebar-content">
+                            <h2>Start with Houston</h2>
+                            <p>
+                                Load the Houston sample to plan shipments
+                                between suppliers and factories around the metro
+                                area.
+                            </p>
+                            <p className="muted">
+                                Inspect facilities and routes on the map. Edit
+                                capacity, compare costs, then test a closure or
+                                delay at a specific location.
+                            </p>
+                        </div>
+                    )}
+                </aside>
+                <div className="analysis-column">
+                    <MapView
+                        mapsAvailable={
+                            workspace.config?.maps_available ?? false
+                        }
+                        locations={scenario?.locations ?? noLocations}
+                        routes={routes}
+                        selected={selectedId}
+                        selectedLocation={facilityId}
+                        target={validTarget}
+                        disruptions={scenario?.disruptions}
+                        disabled={locked || !scenario}
+                        onSelect={selectRoute}
+                        onSelectLocation={selectLocation}
+                        onMove={move}
+                    />
+                    {scenario && (
+                        <RouteResults
+                            scenario={workspace.resultScenario ?? scenario}
+                            result={workspace.result}
+                            previous={workspace.previous}
+                            selected={selectedId}
+                            onSelect={selectRoute}
+                            stale={workspace.stale}
+                        />
+                    )}
+                </div>
+            </div>
             <footer>
-                <span>SUPPLY CHAIN ROUTING LAB</span>
-                <p>
-                    A bounded public demonstration, not dispatch advice.
-                    Shipment unit costs are illustrative estimates. No live
-                    service failure is silently replaced with simulated data.
-                </p>
+                Lane planning, not fleet dispatch. Costs, tolls and weather
+                delays are estimates. Disruptions are simulated.
             </footer>
         </main>
     );

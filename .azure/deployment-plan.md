@@ -1,6 +1,84 @@
-# Entra authentication deployment
+# Fluent map workspace deployment
 
-Status: Deployed
+Status: Validated
+
+## Current change and deployment context
+
+Update the existing `demo` environment in subscription
+`0ec6c427-01d3-4462-ae56-fd9656157157`, tenant
+`66beb9f0-9df6-4ded-8e48-126b39813500`, East US 2,
+application group `rg-scroute-eus2`. Reuse the current Terraform/azd project,
+private state container and existing resources; do not initialize a new project.
+
+Deploy the square-corner Fluent UI map-first workspace, Houston-area default
+scenario, synchronized named route/facility targets, traffic/basemap/fit controls,
+and aligned account photo with `Howdy First Last!`. Add only delegated Graph
+`User.Read` permission metadata to the existing registration. Graph tokens remain
+separate from API tokens. Do not create consent grants, application permissions,
+credentials or a new registration. Existing sessions can explicitly load the
+photo if further consent is needed. Actual personal photo access requires a
+delegated signed-in session and is not claimed by mocked browser tests.
+
+Preserve workload identities, internal API ingress, RBAC and the explicitly
+authorized `SecurityControl=Ignore` tags. No new ARM services or regional capacity
+are required. Preview the actual change before applying; use secure ACR remote
+builds, confirm visible AcrPull and verify healthy revisions/auth boundaries.
+Autopilot continues the existing approved implementation/rollout without
+reselecting subscription, changing policies or granting additional privileges.
+
+Local validation: 181 warning-free Python tests with Ruff/format/mypy;
+59 frontend tests and build; 10 mocked Terraform plans, warning-free validation
+and TFLint; two Chromium desktop/mobile flows including mocked Graph profile,
+closure and facility delay. Visual inspection led to verified sidebar intrinsic
+sizing and schematic-label fixes; no horizontal page/sidebar overflow remains.
+
+## Current validation checklist
+
+- [x] All validation checks pass
+  - [x] azd installed; existing environment, authentication, subscription and region checked.
+  - [x] Official azure.yaml schema validation.
+  - [x] Aspire pre/post-provisioning checks not applicable.
+  - [x] Real provision preview: one Graph permission-metadata addition, eight
+    in-place diagnostic-destination drift reconciliations, zero destruction.
+    No app image, identity, network or role changes appear in the preview.
+  - [x] Python/frontend builds and Docker build-context/lockfile checks.
+  - [x] `azd package --all --no-prompt` in secure remote-build mode.
+  - [x] Complete Terraform preflight including remote state/plan.
+  - [x] Existing policy/tag preservation and static data-plane role verification.
+
+## 7. Validation Proof
+
+Evidence recorded: 2026-11-06T16:45:16-06:00. The azure-validate workflow completed.
+
+The current azure-validate workflow ran the real azd preview successfully:
+one delegated Graph permission-metadata resource, eight in-place reconciliations
+of existing diagnostic destination settings, no replacement or deletion. The
+complete Terraform preflight passed all ten checks using azd-generated backend
+configuration and variables, including authenticated state access and real plan.
+Terraform format/validate, ten mocked plans and recursive TFLint are warning-free.
+
+Official azure.yaml schema validation, `azd auth login --check-status`,
+`azd package --all --no-prompt`, `uv build` and Node 22 production build pass.
+Dockerfiles retain non-root users and correct contexts/lockfiles; secure ACR
+remote builds remain selected. Ruff/format/mypy, 181 warning-free Python tests,
+59 React tests, frontend lint/format/types and two real Chromium workflows pass.
+Screenshots confirm desktop/mobile header alignment, readable named targets and
+no horizontal page/sidebar overflow; browser tests verify a facility delay adds
+25 minutes and a closure removes only its selected candidate. Profile browser
+coverage uses mocked Graph and does not claim a personal delegated cloud session.
+
+Static RBAC remains verified: registry-scoped AcrPull for API/web/refresh;
+Maps Data Reader and container-scoped native Cosmos Data Contributor for API and
+refresh; render-only Maps data action for the separate browser identity.
+No assignments change. Policy assignments were retrieved; the existing explicit
+exception tag remains on the app group/state account, with shared keys and
+anonymous Blob access disabled. No policy, ingress or network changes are planned.
+The existing Maps SDK large-bundle advisory remains non-blocking.
+
+## Previous Entra deployment record (historical)
+
+The following describes the successfully deployed authentication baseline before
+the current Fluent/Houston update and its optional Graph profile permission.
 
 ## Scope and architecture
 
@@ -111,7 +189,7 @@ The new registration has delegated user scope only, no Graph data permissions
 or client credentials. No access keys were introduced. The only policy exception
 is the resource/group tag explicitly requested by the operator.
 
-## 7. Validation proof
+## Historical validation proof
 
 Preparation verification:
 

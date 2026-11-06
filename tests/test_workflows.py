@@ -106,10 +106,10 @@ async def test_seed_crud_optimize_disruption_events_and_etags(client: httpx.Asyn
         {"kind": "road_closure"},
         {"kind": "road_closure", "route_id": "missing"},
         {"kind": "facility_delay", "location_id": "missing", "delay_minutes": 10},
-        {"kind": "facility_delay", "location_id": "seattle", "delay_minutes": 0},
+        {"kind": "facility_delay", "location_id": "houston", "delay_minutes": 0},
         {"kind": "weather", "severity": 1.1},
         {"kind": "weather", "severity": 0.5, "delay_minutes": 1},
-        {"kind": "fuel_price", "fuel_price_per_liter": 5, "location_id": "seattle"},
+        {"kind": "fuel_price", "fuel_price_per_liter": 5, "location_id": "houston"},
     ],
 )
 async def test_invalid_disruption_is_problem_details(

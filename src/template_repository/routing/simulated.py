@@ -18,6 +18,11 @@ def distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 class SimulatedRouting:
     async def geocode(self, address: str) -> list[GeocodeResult]:
         cities = {
+            "houston": (29.7604, -95.3698),
+            "katy": (29.7858, -95.8245),
+            "pasadena": (29.6911, -95.2091),
+            "baytown": (29.7355, -94.9774),
+            "sugar land": (29.6197, -95.6349),
             "seattle": (47.6062, -122.3321),
             "tacoma": (47.2529, -122.4443),
             "spokane": (47.6588, -117.426),

@@ -30,21 +30,27 @@ Deploy the integrated result to the existing demo without changing its security 
   Terraform fmt/validate, two mocked tests, permission allowlist and tflint pass
   without warnings. Whole-frontend formatting flags pre-existing `mapTarget.ts`
   (parent-owned); no out-of-scope files were changed.
-- [ ] Workspace (main): rebuild `App`, `ScenarioEditor`, `DisruptionEditor`,
+- [x] Workspace (main): rebuild `App`, `ScenarioEditor`, `DisruptionEditor`,
   `RouteResults` and CSS with Fluent controls, a map-first split workspace,
   compact route results and plain labels. Integrate the account header.
   Disruption kind and target are controlled by App. Route/facility selections
   synchronize with the matching disruption mode; global weather/fuel explicitly
   target the entire network. Show human-readable targets and a map preview
   before applying; never silently apply to a different target.
-- [ ] Houston (main): replace backend seed locations, frontend default coordinates
+- [x] Houston (main): replace backend seed locations, frontend default coordinates
   and matching fixtures/walkthroughs with Houston and nearby industrial areas.
   Do not rewrite users' existing saved scenarios. Validate geography and existing
   optimizer/conservation tests.
-- [ ] Integration (main; depends on all above): integrate worktree commits, update
+  Complete: 181 warning-free Python tests, Ruff/format and mypy pass.
+- [x] Integration (main; depends on all above): integrate worktree commits, update
   focused tests and browser walkthroughs, VS Code tasks/docs as needed. Run Ruff,
   strict Python tests, frontend lint/format/types/tests/build, Terraform checks,
   and real Chromium desktop/mobile flows. Inspect actual rendered layout.
+  Complete: 59 React tests, 181 warning-free Python tests, 10 mocked Terraform
+  plans, lint/format/types/build, warning-free Terraform validation/TFLint, and
+  two Chromium workflows pass. Desktop/mobile screenshots inspected; sidebar
+  overflow and route annotation clutter corrected. Existing commands/tasks
+  remain valid. Maps SDK bundle advisory is unchanged.
 - [ ] Rollout (main; depends on integration): revalidate the existing azd project,
   provision the minimal Graph permission metadata change, deploy API/web through
   ACR, verify healthy revisions, public auth boundaries and the real sign-in

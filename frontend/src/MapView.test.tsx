@@ -276,10 +276,12 @@ it("distinguishes preview, inspection and enabled closures/delays without applyi
     const routes = within(schematic).getAllByRole("button", {
         name: /^Select route /,
     });
-    expect(
-        within(routes[0]).getByText("INSPECTED · ENABLED · CLOSED"),
-    ).toBeInTheDocument();
-    expect(within(routes[1]).getByText("TARGET PREVIEW")).toBeInTheDocument();
+    expect(routes[0]).toHaveAccessibleDescription(
+        expect.stringContaining("ENABLED · CLOSED"),
+    );
+    expect(routes[1]).toHaveAccessibleDescription(
+        expect.stringContaining("TARGET PREVIEW"),
+    );
     expect(
         within(schematic).getByRole("button", {
             name: `Select facility ${scenario.locations[0].name}`,
@@ -295,9 +297,9 @@ it("distinguishes preview, inspection and enabled closures/delays without applyi
             ]}
         />,
     );
-    expect(
-        within(schematic).queryByText(/ENABLED · CLOSED/),
-    ).not.toBeInTheDocument();
+    expect(routes[0]).not.toHaveAccessibleDescription(
+        expect.stringContaining("ENABLED · CLOSED"),
+    );
     expect(within(schematic).queryByText(/DELAYED 45/)).not.toBeInTheDocument();
     const supplier = within(schematic).getByRole("button", {
         name: `Select facility ${scenario.locations[0].name}`,
@@ -320,7 +322,9 @@ it("makes global scope explicit and handles a network without routes", () => {
         name: /^Select route /,
     });
     lanes.forEach((lane) =>
-        expect(within(lane).getByText(/TARGET PREVIEW/)).toBeInTheDocument(),
+        expect(lane).toHaveAccessibleDescription(
+            expect.stringContaining("TARGET PREVIEW"),
+        ),
     );
     expect(
         screen.getByText(
@@ -552,8 +556,18 @@ it("uses safe DOM popup content for user-supplied names and includes estimate la
         position: [-95, 29],
     });
     expect(sdk.popup.content?.textContent).toContain("Simulated estimate");
-    expect(sdk.popup.content?.textContent).toContain("450.0 km · ETA 300 min");
+    expect(sdk.popup.content?.textContent).toContain("450.0 km · ETA 310 min");
     expect(sdk.popup.content?.querySelector("img")).toBeNull();
+});
+
+it("includes weather and simulated delays in map ETA without counting traffic twice", () => {
+    render(
+        <MapView
+            {...props}
+            routes={[{ ...run.routes[0], simulated_delay_minutes: 30 }]}
+        />,
+    );
+    expect(screen.getByText(/^INSPECTED ·/)).toHaveTextContent("ETA 340 min");
 });
 
 it("updates a facility preview and removes deleted markers without resetting inspection viewport", async () => {
@@ -635,7 +649,7 @@ it("refreshes expiring tokens and disposes the map if refreshed authorization fa
     expect(await screen.findByText("Map token expired")).toBeInTheDocument();
     expect(reject).toHaveBeenCalled();
     expect(resolve).not.toHaveBeenCalled();
-    expect(sdk.dispose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(sdk.dispose).toHaveBeenCalledTimes(1));
     expect(
         screen.getByRole("group", { name: /Coordinate schematic/ }),
     ).toBeInTheDocument();

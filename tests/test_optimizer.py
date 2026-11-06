@@ -41,9 +41,25 @@ async def test_excess_supply_or_prohibited_lanes_are_infeasible() -> None:
     scenario.disruptions = [
         Disruption(id=f"closure-{i}", name="Close", kind="road_closure", route_id=route.id)
         for i, route in enumerate(routes)
-        if route.supplier_id == "seattle"
+        if route.supplier_id == scenario.locations[0].id
     ]
     assert optimize(scenario, routes)[0] == []
+
+
+async def test_houston_seed_and_geocoding_stay_in_the_metro_area() -> None:
+    scenario = seed_scenario()
+    routing = SimulatedRouting()
+    for location in scenario.locations:
+        assert 29.3 <= location.latitude <= 30.3
+        assert -96 <= location.longitude <= -94.5
+        matches = await routing.geocode(location.address)
+        assert any(
+            result.latitude == location.latitude and result.longitude == location.longitude
+            for result in matches
+        )
+    routes, _ = await routing.routes(scenario)
+    assert routes
+    assert all(0 < route.distance_km < 200 for route in routes)
 
 
 async def test_costs_eight_components_and_no_traffic_time_double_count() -> None:

@@ -1,3 +1,4 @@
+import { Button, Input, Select } from "@fluentui/react-components";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage, request, scenarioPath } from "./api";
 import type {
@@ -14,6 +15,8 @@ interface Props {
     disabled: boolean;
     routes: RouteCandidate[];
     onChange: (scenario: Scenario) => void;
+    selectedLocation?: string | null;
+    onSelectLocation?: (id: string) => void;
 }
 
 const humanize = (value: string) => value.replaceAll("_", " ");
@@ -23,11 +26,15 @@ function LocationEditor({
     scenarioId,
     onChange,
     onRemove,
+    selected,
+    onSelect,
 }: {
     location: Location;
     scenarioId: string;
     onChange: (location: Location) => void;
     onRemove: () => void;
+    selected?: boolean;
+    onSelect?: () => void;
 }) {
     const [results, setResults] = useState<GeocodeResult[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -66,7 +73,9 @@ function LocationEditor({
     };
 
     return (
-        <fieldset className="location-card">
+        <fieldset
+            className={`location-card${selected ? " location-selected" : ""}`}
+        >
             <legend>
                 {location.kind === "supplier"
                     ? "Supplier supply"
@@ -76,7 +85,7 @@ function LocationEditor({
             <div className="fields">
                 <label>
                     Name
-                    <input
+                    <Input
                         value={location.name}
                         required
                         maxLength={120}
@@ -87,7 +96,7 @@ function LocationEditor({
                 </label>
                 <label>
                     Kind
-                    <select
+                    <Select
                         value={location.kind}
                         onChange={(e) =>
                             onChange({
@@ -98,11 +107,11 @@ function LocationEditor({
                     >
                         <option value="supplier">Supplier</option>
                         <option value="factory">Factory</option>
-                    </select>
+                    </Select>
                 </label>
                 <label className="wide">
                     Address
-                    <input
+                    <Input
                         value={location.address}
                         maxLength={500}
                         onChange={(e) => {
@@ -115,13 +124,13 @@ function LocationEditor({
                 </label>
                 <label>
                     Latitude
-                    <input
+                    <Input
                         type="number"
                         step="any"
                         min={24}
                         max={50}
                         required
-                        value={location.latitude}
+                        value={String(location.latitude)}
                         onChange={(e) =>
                             onChange({
                                 ...location,
@@ -132,13 +141,13 @@ function LocationEditor({
                 </label>
                 <label>
                     Longitude
-                    <input
+                    <Input
                         type="number"
                         step="any"
                         min={-125}
                         max={-66}
                         required
-                        value={location.longitude}
+                        value={String(location.longitude)}
                         onChange={(e) =>
                             onChange({
                                 ...location,
@@ -151,13 +160,13 @@ function LocationEditor({
                     {location.kind === "supplier"
                         ? "Supply (units)"
                         : "Capacity (units)"}
-                    <input
+                    <Input
                         type="number"
                         min={0}
                         max={100000}
                         step={0.001}
                         required
-                        value={location.quantity}
+                        value={String(location.quantity)}
                         onChange={(e) =>
                             onChange({
                                 ...location,
@@ -168,21 +177,33 @@ function LocationEditor({
                 </label>
             </div>
             <div className="actions">
-                <button
+                {onSelect && (
+                    <Button
+                        type="button"
+                        appearance="subtle"
+                        onClick={onSelect}
+                        aria-label={`Select ${location.name} on map`}
+                        aria-pressed={selected}
+                    >
+                        Select on map
+                    </Button>
+                )}
+                <Button
                     type="button"
                     onClick={() => void geocode()}
                     disabled={!location.address.trim() || searching}
                 >
                     {searching ? "Finding…" : "Find address"}
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
-                    className="quiet danger"
+                    appearance="subtle"
+                    className="danger"
                     onClick={onRemove}
                     aria-label={`Remove ${location.name || "location"}`}
                 >
                     Remove
-                </button>
+                </Button>
             </div>
             {error && (
                 <p role="alert" className="inline-error">
@@ -193,7 +214,7 @@ function LocationEditor({
                 <fieldset className="geocode-results">
                     <legend>Choose an address match</legend>
                     {results.map((result, index) => (
-                        <button
+                        <Button
                             type="button"
                             key={index}
                             onClick={() => {
@@ -203,7 +224,7 @@ function LocationEditor({
                         >
                             {result.address} ({result.latitude.toFixed(4)},{" "}
                             {result.longitude.toFixed(4)})
-                        </button>
+                        </Button>
                     ))}
                 </fieldset>
             )}
@@ -217,6 +238,8 @@ export default function ScenarioEditor({
     disabled,
     routes,
     onChange,
+    selectedLocation,
+    onSelectLocation,
 }: Props) {
     const routeTargetsFor = (id: string) =>
         new Set(
@@ -254,8 +277,8 @@ export default function ScenarioEditor({
                     kind,
                     name: kind === "supplier" ? "New supplier" : "New factory",
                     address: "",
-                    latitude: 41.88,
-                    longitude: -87.63,
+                    latitude: 29.7604,
+                    longitude: -95.3698,
                     quantity: 100,
                 },
             ],
@@ -276,7 +299,7 @@ export default function ScenarioEditor({
             <legend className="sr-only">Scenario inputs</legend>
             <label>
                 Scenario name
-                <input
+                <Input
                     value={scenario.name}
                     required
                     maxLength={120}
@@ -287,7 +310,7 @@ export default function ScenarioEditor({
             </label>
             <label>
                 Departure time (your local timezone)
-                <input
+                <Input
                     type="datetime-local"
                     value={localDeparture}
                     required
@@ -305,8 +328,8 @@ export default function ScenarioEditor({
             <p className="muted">
                 {suppliers}/{config.max_suppliers} suppliers · {factories}/
                 {config.max_factories} factories. Contiguous-US demo bounds:
-                latitude 24–50, longitude −125 to −66. Coordinates are editable
-                keyboard alternatives to map dragging.
+                latitude 24–50, longitude −125 to −66. New facilities start in
+                Houston. Drag markers or edit coordinates to move them.
             </p>
             <p className="muted">
                 Removing a location clears its facility disruptions and known
@@ -318,6 +341,12 @@ export default function ScenarioEditor({
                     key={location.id}
                     location={location}
                     scenarioId={scenario.id}
+                    selected={selectedLocation === location.id}
+                    onSelect={
+                        onSelectLocation
+                            ? () => onSelectLocation(location.id)
+                            : undefined
+                    }
                     onChange={updateLocation}
                     onRemove={() =>
                         onChange({
@@ -338,20 +367,20 @@ export default function ScenarioEditor({
                 />
             ))}
             <div className="actions">
-                <button
+                <Button
                     type="button"
                     disabled={suppliers >= config.max_suppliers}
                     onClick={() => add("supplier")}
                 >
                     + Supplier
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     disabled={factories >= config.max_factories}
                     onClick={() => add("factory")}
                 >
                     + Factory
-                </button>
+                </Button>
             </div>
             {(suppliers > config.max_suppliers ||
                 factories > config.max_factories) && (
@@ -374,12 +403,12 @@ export default function ScenarioEditor({
                     ).map((key) => (
                         <label key={key}>
                             {humanize(key)}
-                            <input
+                            <Input
                                 type="number"
                                 min={0.01}
                                 step="any"
                                 required
-                                value={scenario.truck[key]}
+                                value={String(scenario.truck[key])}
                                 onChange={(e) =>
                                     onChange({
                                         ...scenario,
@@ -404,7 +433,7 @@ export default function ScenarioEditor({
                 </p>
                 <label>
                     Currency (ISO code)
-                    <select
+                    <Select
                         value={scenario.cost_profile.currency}
                         onChange={(e) =>
                             onChange({
@@ -419,7 +448,7 @@ export default function ScenarioEditor({
                         {["USD", "CAD", "EUR", "GBP"].map((currency) => (
                             <option key={currency}>{currency}</option>
                         ))}
-                    </select>
+                    </Select>
                 </label>
                 <div className="fields">
                     {(
@@ -431,12 +460,12 @@ export default function ScenarioEditor({
                         .map((key) => (
                             <label key={key}>
                                 {humanize(key)}
-                                <input
+                                <Input
                                     type="number"
                                     min={0}
                                     step="any"
                                     required
-                                    value={scenario.cost_profile[key]}
+                                    value={String(scenario.cost_profile[key])}
                                     onChange={(e) =>
                                         onChange({
                                             ...scenario,

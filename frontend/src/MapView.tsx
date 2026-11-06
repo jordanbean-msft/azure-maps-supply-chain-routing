@@ -31,8 +31,16 @@ function laneName(route: RouteCandidate, locations: Location[]): string {
     return `${name(route.supplier_id)} → ${name(route.factory_id)}`;
 }
 
+function estimatedMinutes(route: RouteCandidate): number {
+    return Math.round(
+        route.duration_minutes +
+            route.weather_delay_minutes +
+            route.simulated_delay_minutes,
+    );
+}
+
 function routeLabel(route: RouteCandidate, locations: Location[]): string {
-    return `${laneName(route, locations)} · ${route.distance_km.toFixed(1)} km · ETA ${Math.round(route.duration_minutes)} min · ${route.source === "simulated" ? "Simulated estimate" : "Azure Maps estimate"}`;
+    return `${laneName(route, locations)} · ${route.distance_km.toFixed(1)} km · ETA ${estimatedMinutes(route)} min · ${route.source === "simulated" ? "Simulated estimate" : "Azure Maps estimate"}`;
 }
 
 function routePreview(
@@ -149,7 +157,7 @@ function Schematic(props: Props) {
                     </text>
                 </g>
             )}
-            {routes.map((route, index) => {
+            {routes.map((route) => {
                 const preview = routePreview(route, target);
                 const closure = closed(route, props.disruptions);
                 const label = routeLabel(route, locations);
@@ -165,7 +173,7 @@ function Schematic(props: Props) {
                         role="button"
                         tabIndex={0}
                         aria-label={`Select route ${route.id}`}
-                        aria-description={label}
+                        aria-description={`${label}${preview ? " · TARGET PREVIEW" : ""}${closure ? " · ENABLED · CLOSED" : ""}`}
                         aria-pressed={selected === route.id}
                         onClick={() => onSelect(route.id)}
                         onKeyDown={(event) =>
@@ -201,27 +209,15 @@ function Schematic(props: Props) {
                         />
                         <text
                             x={x}
-                            y={y - 12 - (index % 2) * 18}
+                            y={y - 36}
                             textAnchor="middle"
                             className="lane-label"
+                            visibility={
+                                selected === route.id ? undefined : "hidden"
+                            }
                         >
-                            {laneName(route, locations)} ·{" "}
                             {route.distance_km.toFixed(1)} km ·{" "}
-                            {Math.round(route.duration_minutes)} min
-                        </text>
-                        <text
-                            x={x}
-                            y={y + 18 + (index % 2) * 18}
-                            textAnchor="middle"
-                            className="lane-state"
-                        >
-                            {[
-                                selected === route.id && "INSPECTED",
-                                preview && "TARGET PREVIEW",
-                                closure && "ENABLED · CLOSED",
-                            ]
-                                .filter(Boolean)
-                                .join(" · ")}
+                            {estimatedMinutes(route)} min
                         </text>
                     </g>
                 );
@@ -556,7 +552,7 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
                             new atlas.data.LineString(route.geometry),
                             {
                                 route_id: route.id,
-                                label: `${laneName(route, props.locations)} · ${route.distance_km.toFixed(1)} km · ${Math.round(route.duration_minutes)} min${routePreview(route, props.target) ? " · TARGET PREVIEW" : ""}${closed(route, props.disruptions) ? " · ENABLED CLOSED" : ""}`,
+                                label: `${laneName(route, props.locations)} · ${route.distance_km.toFixed(1)} km · ${estimatedMinutes(route)} min${routePreview(route, props.target) ? " · TARGET PREVIEW" : ""}${closed(route, props.disruptions) ? " · ENABLED CLOSED" : ""}`,
                             },
                         ),
                 ),
@@ -790,8 +786,8 @@ export default function MapView(props: Props) {
                     : `Full network shown. Select facilities or lanes with mouse, Enter or Space. ${props.disabled ? "Coordinate editing is locked." : "Edit coordinates in the location editor."}`}{" "}
                 Lines show the last successful run; facilities show editor
                 coordinates. Disruptions are simulations, not live road
-                closures. ETA includes traffic; excludes weather and simulated
-                delays.
+                closures. ETA includes traffic, estimated weather and simulated
+                delays from the last run.
             </p>
         </section>
     );

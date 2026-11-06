@@ -7,7 +7,8 @@ test("seed → edit → optimize → close a route → compare persisted results
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto("/");
     await expect(page.getByText(/SIMULATION MODE/)).toBeVisible();
-    await page.getByRole("button", { name: /Load seed scenario/ }).click();
+    await page.getByRole("button", { name: /Load Houston sample/ }).click();
+    await page.getByText("Refresh settings", { exact: true }).click();
     await page.getByLabel("Pause auto-refresh").check();
     const scenarioName = `Browser scenario ${Date.now()}`;
     await page.getByLabel("Scenario name", { exact: true }).fill(scenarioName);
@@ -20,14 +21,28 @@ test("seed → edit → optimize → close a route → compare persisted results
     await expect(page.getByText(/^COMPLETED ·/)).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await expect(
-        page.getByRole("img", { name: /Coordinate schematic/ }),
+        page.getByRole("group", { name: /Coordinate schematic/ }),
     ).toBeVisible();
     const route = page.getByRole("table").locator("tbody tr").first();
-    const routeId = (await route.locator("small").innerText()).trim();
+    const routeId = await route.getAttribute("data-route-id");
+    expect(routeId).toBeTruthy();
     await route.getByRole("button").click();
+    await page.getByRole("tab", { name: "Disruptions" }).click();
     await page
-        .getByRole("combobox", { name: "Target", exact: true })
-        .selectOption(routeId);
+        .getByRole("combobox", { name: "Route to close", exact: true })
+        .selectOption(routeId!);
+    await expect(
+        page.getByRole("status", { name: "Disruption target preview" }),
+    ).toContainText("This candidate is outlined on the map");
+    expect(
+        await page
+            .getByRole("complementary", { name: "Planning controls" })
+            .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
+    await page.screenshot({
+        path: test.info().outputPath("fluent-desktop.png"),
+        fullPage: true,
+    });
     await page
         .getByLabel("Disruption name", { exact: true })
         .fill("Browser road closure");
@@ -42,13 +57,157 @@ test("seed → edit → optimize → close a route → compare persisted results
         .click();
     await expect(page.getByText(/^COMPLETED ·/)).toBeVisible();
     await expect(
-        page.getByRole("table").locator("small").filter({ hasText: routeId }),
+        page.getByRole("table").locator(`[data-route-id="${routeId}"]`),
     ).toHaveCount(0);
     await expect(page.getByText(/Previous run total/)).toBeVisible();
+    const baytownRoute = page
+        .getByRole("table")
+        .locator("tbody tr")
+        .filter({ hasText: "Baytown factory" })
+        .first();
+    const baytownId = await baytownRoute.getAttribute("data-route-id");
+    const previousEta = Number.parseFloat(
+        await baytownRoute.locator("td").nth(2).innerText(),
+    );
+    await page.getByLabel("Disruption kind").selectOption("facility_delay");
+    await page
+        .getByRole("button", { name: "Select facility Baytown factory" })
+        .click();
+    await expect(page.getByLabel("Facility to delay")).toHaveValue("baytown");
+    await expect(page.locator(".map-target-status")).toContainText(
+        "TARGET PREVIEW · Baytown factory",
+    );
+    await page
+        .getByLabel("Disruption name", { exact: true })
+        .fill("Loading delay");
+    await page.getByLabel("Delay (minutes)", { exact: true }).fill("25");
+    await page.getByRole("button", { name: "Apply disruption" }).click();
+    await expect(
+        page.getByRole("button", { name: "Remove disruption Loading delay" }),
+    ).toBeEnabled();
+    await page
+        .getByRole("button", { name: "Optimize network", exact: true })
+        .click();
+    await expect
+        .poll(async () =>
+            Number.parseFloat(
+                await page
+                    .locator(`tr[data-route-id="${baytownId}"] td`)
+                    .nth(2)
+                    .innerText(),
+            ),
+        )
+        .toBeCloseTo(previousEta + 25, 1);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(
+        page.getByRole("group", { name: /Coordinate schematic/ }),
+    ).toBeVisible();
+    expect(
+        await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+    ).toBe(true);
+    await page.screenshot({
+        path: test.info().outputPath("fluent-mobile.png"),
+        fullPage: true,
+    });
     await page.reload();
     await expect(page.getByLabel("Scenario name", { exact: true })).toHaveValue(
         scenarioName,
     );
     await expect(page.getByRole("table")).toBeVisible();
     expect(errors).toEqual([]);
+});
+
+test("profile photo and Howdy greeting align on desktop and narrow screens", async ({
+    page,
+}) => {
+    await page.route("**/api/auth/config", (route) =>
+        route.fulfill({
+            json: {
+                enabled: true,
+                tenant_id: "11111111-1111-4111-8111-111111111111",
+                client_id: "22222222-2222-4222-8222-222222222222",
+                scope: "api://browser-demo/access_as_user",
+            },
+        }),
+    );
+    await page.route("**/@azure_msal-browser.js*", (route) =>
+        route.fulfill({
+            contentType: "application/javascript",
+            body: `
+                export class InteractionRequiredAuthError extends Error {}
+                export class PublicClientApplication {
+                    async initialize() {}
+                    async handleRedirectPromise() { return null; }
+                    getAllAccounts() {
+                        return [{ homeAccountId: "browser-demo", name: "Fallback name" }];
+                    }
+                    async acquireTokenSilent({scopes}) {
+                        return { accessToken: scopes[0].includes("graph.microsoft.com") ? "graph-demo" : "api-demo" };
+                    }
+                }
+            `,
+        }),
+    );
+    await page.route("https://graph.microsoft.com/**", async (route) => {
+        const headers = {
+            "access-control-allow-origin": "*",
+            "access-control-allow-headers": "Authorization",
+            "access-control-allow-methods": "GET",
+        };
+        if (route.request().method() === "OPTIONS") {
+            await route.fulfill({ status: 204, headers });
+            return;
+        }
+        expect(route.request().headers().authorization).toBe(
+            "Bearer graph-demo",
+        );
+        if (route.request().url().includes("/photo/"))
+            await route.fulfill({
+                headers,
+                contentType: "image/svg+xml",
+                body: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="#0f6cbd"/></svg>',
+            });
+        else
+            await route.fulfill({
+                headers,
+                json: {
+                    givenName: "Alex",
+                    surname: "Morgan",
+                    displayName: "Morgan, Alex",
+                },
+            });
+    });
+    await page.goto("/");
+    const greeting = page.getByText("Howdy Alex Morgan!", { exact: true });
+    await expect(greeting).toBeVisible();
+    const photo = page.locator(".app-header .fui-Avatar img");
+    await expect(photo).toHaveAttribute("src", /^blob:/);
+    await expect(photo).toBeVisible();
+    const avatarBox = await photo.boundingBox();
+    const greetingBox = await greeting.boundingBox();
+    expect(
+        Math.abs(
+            avatarBox!.y +
+                avatarBox!.height / 2 -
+                greetingBox!.y -
+                greetingBox!.height / 2,
+        ),
+    ).toBeLessThan(4);
+    await page.screenshot({
+        path: test.info().outputPath("fluent-profile-desktop.png"),
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(greeting).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+    expect(
+        await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+    ).toBe(true);
+    await page.screenshot({
+        path: test.info().outputPath("fluent-profile-mobile.png"),
+    });
 });

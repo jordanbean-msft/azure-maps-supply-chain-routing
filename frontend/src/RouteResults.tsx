@@ -1,3 +1,4 @@
+import { Badge, Button } from "@fluentui/react-components";
 import type {
     CostBreakdown,
     CostProfile,
@@ -113,21 +114,19 @@ export default function RouteResults({
         >
             <div className="panel-heading">
                 <div>
-                    <p className="eyebrow">ALLOCATION & ALTERNATIVES</p>
-                    <h2 id="results-title">The cost behind every decision</h2>
+                    <h2 id="results-title">Routes and costs</h2>
                 </div>
-                <span className={`badge ${stale ? "amber" : ""}`}>
+                <Badge appearance="tint" color={stale ? "warning" : "subtle"}>
                     {stale
                         ? "Previous snapshot"
                         : result
                           ? "Completed snapshot"
                           : "Not optimized"}
-                </span>
+                </Badge>
             </div>
             {!result ? (
                 <div className="empty-state">
-                    <span aria-hidden="true">↗</span>
-                    <h3>Your network is ready for a plan</h3>
+                    <h3>No routes yet</h3>
                     <p>
                         Save a scenario, then optimize to compare routes and
                         allocate supplier supply within factory capacity.
@@ -204,6 +203,7 @@ export default function RouteResults({
                                     return (
                                         <tr
                                             key={route.id}
+                                            data-route-id={route.id}
                                             className={
                                                 selectedRoute?.id === route.id
                                                     ? "selected-row"
@@ -211,8 +211,9 @@ export default function RouteResults({
                                             }
                                         >
                                             <th scope="row">
-                                                <button
+                                                <Button
                                                     type="button"
+                                                    appearance="subtle"
                                                     className="route-button"
                                                     aria-pressed={
                                                         selectedRoute?.id ===
@@ -233,8 +234,23 @@ export default function RouteResults({
                                                     {locations.get(
                                                         route.factory_id,
                                                     )?.name ?? route.factory_id}
-                                                    <small>{route.id}</small>
-                                                </button>
+                                                    <small>
+                                                        Option{" "}
+                                                        {result.routes
+                                                            .filter(
+                                                                (item) =>
+                                                                    item.supplier_id ===
+                                                                        route.supplier_id &&
+                                                                    item.factory_id ===
+                                                                        route.factory_id,
+                                                            )
+                                                            .findIndex(
+                                                                (item) =>
+                                                                    item.id ===
+                                                                    route.id,
+                                                            ) + 1}
+                                                    </small>
+                                                </Button>
                                             </th>
                                             <td>
                                                 <span
@@ -312,8 +328,13 @@ export default function RouteResults({
                     {selectedRoute && costs && (
                         <div className="cost-detail">
                             <div>
-                                <p className="eyebrow">SELECTED ROUTE</p>
-                                <h3>{selectedRoute.id}</h3>
+                                <h3>
+                                    {locations.get(selectedRoute.supplier_id)
+                                        ?.name ?? "Supplier"}
+                                    {" → "}
+                                    {locations.get(selectedRoute.factory_id)
+                                        ?.name ?? "Factory"}
+                                </h3>
                                 <p>
                                     {selectedAllocation
                                         ? "Persisted allocation"

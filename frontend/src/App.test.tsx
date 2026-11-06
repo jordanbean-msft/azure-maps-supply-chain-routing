@@ -61,14 +61,14 @@ function setupApi({ stale = false, running = false } = {}) {
         if (url.endsWith("/locations:geocode"))
             return response([
                 {
-                    address: "Chicago, IL, USA",
-                    latitude: 41.9,
-                    longitude: -87.7,
+                    address: "Houston, TX, USA",
+                    latitude: 29.76,
+                    longitude: -95.37,
                 },
                 {
-                    address: "Chicago Heights, IL",
-                    latitude: 41.5,
-                    longitude: -87.6,
+                    address: "Houston Heights, TX",
+                    latitude: 29.8,
+                    longitude: -95.4,
                 },
             ]);
         if (url.endsWith("/disruptions")) {
@@ -118,9 +118,11 @@ function setupApi({ stale = false, running = false } = {}) {
 }
 
 async function seed() {
-    fireEvent.click(
-        await screen.findByRole("button", { name: /Load seed scenario/ }),
-    );
+    const button = await screen.findByRole("button", {
+        name: /Load Houston sample/,
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
     await screen.findByRole("textbox", { name: "Scenario name" });
 }
 
@@ -135,7 +137,7 @@ describe("network planning workspace", () => {
         expect(await screen.findByText(/SIMULATION MODE/)).toBeInTheDocument();
         await seed();
         expect(
-            screen.getByRole("img", { name: /Coordinate schematic/ }),
+            screen.getByRole("group", { name: /Coordinate schematic/ }),
         ).toBeInTheDocument();
         fireEvent.change(screen.getAllByLabelText("Supply (units)")[0], {
             target: { value: "75" },
@@ -165,22 +167,23 @@ describe("network planning workspace", () => {
             within(screen.getByRole("table")).getByText("$10,000.00"),
         ).toBeInTheDocument();
         fireEvent.click(
-            screen.getByRole("button", { name: /2 Chicago supply/ }),
+            screen.getByRole("button", { name: /2 Houston supply/ }),
         );
         expect(
-            screen.getByRole("button", { name: /2 Chicago supply/ }),
+            screen.getByRole("button", { name: /2 Houston supply/ }),
         ).toHaveAttribute("aria-pressed", "true");
         expect(
             screen.getByText(/Hypothetical full supplier supply/),
         ).toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText("Target"), {
+        fireEvent.click(screen.getByRole("tab", { name: "Disruptions" }));
+        fireEvent.change(screen.getByLabelText("Route to close"), {
             target: { value: "route-1" },
         });
         fireEvent.click(
             screen.getByRole("button", { name: "Apply disruption" }),
         );
         await screen.findByRole("button", {
-            name: "Remove disruption road closure",
+            name: "Remove disruption Closure: Houston supply → Baytown factory",
         });
         expect(fetch).toHaveBeenCalledWith(
             "/api/scenarios/scenario-1/disruptions",
@@ -289,10 +292,11 @@ describe("network planning workspace", () => {
             name: "Choose an address match",
         });
         fireEvent.click(
-            within(matches).getByRole("button", { name: /Chicago, IL, USA/ }),
+            within(matches).getByRole("button", { name: /Houston, TX, USA/ }),
         );
-        expect(screen.getAllByLabelText("Latitude")[0]).toHaveValue(41.9);
+        expect(screen.getAllByLabelText("Latitude")[0]).toHaveValue(29.76);
         fireEvent.click(screen.getByRole("button", { name: "Save scenario" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Disruptions" }));
         await waitFor(() =>
             expect(
                 screen.getByRole("button", { name: "Apply disruption" }),
@@ -321,7 +325,7 @@ describe("network planning workspace", () => {
         render(<App />);
         expect(await screen.findByRole("alert")).toHaveTextContent("503");
         expect(
-            screen.getByRole("button", { name: /Load seed scenario/ }),
+            screen.getByRole("button", { name: /Load Houston sample/ }),
         ).toBeDisabled();
     });
 
