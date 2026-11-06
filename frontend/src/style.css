@@ -4,6 +4,7 @@
     background: #fafafa;
     font-synthesis: none;
     font-size: 14px;
+    overflow-wrap: anywhere;
     --border: #e0e0e0;
     --muted: #616161;
 }
@@ -63,6 +64,23 @@ select {
     align-items: center;
     gap: 8px;
 }
+.workspace-toolbar,
+.section-heading,
+.panel-heading {
+    flex-wrap: wrap;
+}
+.app-shell .fui-Button {
+    max-width: 100%;
+    white-space: normal;
+}
+.app-shell .fui-Badge {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 20px;
+    padding-block: 2px;
+    white-space: normal;
+}
 .scenario-heading {
     min-width: 0;
     flex-wrap: wrap;
@@ -98,6 +116,7 @@ select {
     min-height: 440px;
     overflow: auto;
     scrollbar-gutter: stable;
+    min-width: 0;
 }
 .planning-sidebar > .fui-TabList {
     position: sticky;
@@ -132,6 +151,7 @@ select {
 .panel {
     background: white;
     border: 1px solid var(--border);
+    min-width: 0;
 }
 .muted,
 .footnote {
@@ -309,6 +329,7 @@ summary {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
 }
 .result-summary span,
 .result-summary small {
@@ -407,6 +428,11 @@ thead th {
 .cost-detail p {
     margin-top: 8px;
 }
+.cost-detail > div,
+.cost-breakdown dt,
+.cost-breakdown dd {
+    min-width: 0;
+}
 .cost-total {
     display: block;
     margin-top: 8px;
@@ -423,7 +449,7 @@ thead th {
 }
 .cost-breakdown dd {
     margin: 0;
-    white-space: nowrap;
+    text-align: right;
 }
 .cost-sum {
     border-top: 1px solid var(--border);
@@ -433,6 +459,12 @@ thead th {
     padding: 10px 12px;
     margin: 0;
     background: #fff9f5;
+}
+ul.notice {
+    padding-inline-start: 32px;
+}
+.notice li + li {
+    margin-top: 6px;
 }
 .inline-error,
 [role="alert"] {
@@ -493,6 +525,6 @@ footer {
         flex: 1 1 auto;
     }
     .result-summary {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

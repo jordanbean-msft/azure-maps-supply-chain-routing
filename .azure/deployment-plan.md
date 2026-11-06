@@ -1,6 +1,123 @@
-# Remembered Entra session deployment
+# Text containment deployment
 
 Status: Deployed
+
+## Current scope
+
+Modify the existing Terraform/azd `demo` environment in East US 2,
+subscription `0ec6c427-01d3-4462-ae56-fd9656157157`, `rg-scroute-eus2`.
+Autopilot continues the existing demo update. Deploy web only using secure ACR
+remote build. Fix text wrapping, flexible panel/control sizing, warning bullet
+indentation and bounded schematic facility labels; retain complete text and
+working map selection. Preserve the intentionally scrollable route table.
+
+No new resources, capacity, dependencies, commands, redirects or permissions.
+Keep SSO, registration, API/refresh images, Cosmos data, all roles and the
+authorized exception tags unchanged. Existing VS Code automation remains valid.
+
+## Current preparation checklist
+
+- [x] Reproduce long-name/warning overflow in Chromium before fixing.
+- [x] Fix responsive sizing, badge wrapping, bullet gutter and map labels.
+- [x] Verify frontend lint/format/types/build, 71 tests and four browser flows.
+- [x] Inspect desktop, narrow two-column and mobile screenshots.
+- [x] Complete current Azure validation and record proof.
+- [x] Reconcile reviewed non-destructive infrastructure and verify AcrPull.
+- [x] Deploy web only; verify ready revision, exact assets and auth smoke.
+
+## Functional verification
+
+The new browser regression measures rendered text bounds in panels, headings,
+badges, summaries, warnings, legends, disruption controls and the schematic.
+It verifies bullet inset and no horizontal page overflow with long names and
+unbroken upstream references at 1440, 1024, 768, 701, 390 and 320px widths.
+All four Chromium workflows pass, including the unchanged authenticated-session,
+profile and full local shipment/disruption workflows. Schematic labels wrap and
+edge-align without losing text; whole-facility hit targets remain selectable.
+The earlier browser failure exposed and verified that related hit-target fix.
+Final ESLint, Prettier, 71 React tests, TypeScript and build pass. A generated
+failed-trace HTML report was removed before final lint to avoid linting bundled
+third-party report JavaScript. No Python or Terraform source changed.
+
+## 7. Validation Proof
+
+Current evidence recorded: 2026-11-06T17:50:51-06:00.
+
+The current azure-validate workflow ran the existing Terraform/azd recipe.
+AZD installation, authentication, selected `demo` environment, subscription/
+tenant/location and official azure.yaml schema validation pass.
+`azd provision --preview --no-prompt` succeeds; inspection of the real plan JSON
+asserts exactly eight in-place diagnostic-setting updates, zero additions/
+destruction and no other resource changes. Current preview is saved in session
+`files/text-containment-preview.log`.
+
+The complete `validate-terraform.sh infra` preflight passes all ten checks using
+azd-generated `demo.conf.json` and `main.tfvars.json`. Authenticated remote-state
+access, format/validate, real plan, state list and template/JSON checks have zero
+errors/warnings. Generated `infra/tfplan` removed. `azd package --all --no-prompt`
+passes in secure remote-build mode; Docker contexts/non-root users and checked-in
+lockfiles remain unchanged.
+
+ESLint, Prettier, 71 React tests, TypeScript and production build pass. Four
+Chromium workflows pass, including rendered text geometry and warning bullet
+gutter checks at six widths, plus normal routing, profile and remembered SSO.
+Desktop/mobile screenshots inspected; the existing Maps bundle advisory remains.
+No new command or entrypoint requires a VS Code automation change.
+
+All 14 application ARM resources retain the authorized exception tag. The 97
+inherited policy assignments retrieved earlier this session remain applicable;
+no infrastructure source or policy setting changed. Static role review and
+the no-change plan confirm unchanged registry AcrPull/AcrPush, Maps-account
+Data Reader for workloads, scenario-container native Cosmos Data Contributor,
+and browser render/traffic reads only. No added capacity or role is requested.
+
+## All validation checks pass
+
+- [x] AZD installation, selected environment, authentication, subscription/location.
+- [x] Official azure.yaml schema validation.
+- [x] Aspire pre/post-provisioning checks not applicable.
+- [x] Non-destructive real provision preview.
+- [x] Frontend build and functional verification.
+- [x] Existing Docker contexts, non-root users and checked-in lockfiles unchanged.
+- [x] Secure remote-build mode package validation.
+- [x] Complete Terraform preflight including authenticated state and real plan.
+- [x] Existing policy/tag preservation and static data-plane role verification.
+
+## Text-containment rollout result
+
+Verified: 2026-11-06T17:55:57-06:00.
+
+Web update deployed:
+https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+
+`azd provision --no-prompt` completed the reviewed eight in-place diagnostic
+reconciliations with no additions/destruction. Registry-scoped AcrPull was
+confirmed for all three workloads before the successful secure ACR
+`azd deploy web --no-prompt`. `azd show` confirms the expected endpoints.
+
+Revision `ca-njk0ztnkmgrmn-web--azd-1794009292` equals latest ready and is
+healthy/running. Image:
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/web-demo:azd-deploy-1794009151`.
+After waiting for activation, deployed `index-2FrvDquD.js` and
+`index-ByXiMwOi.css` match the validated build byte-for-byte. Live auth smoke
+passes: discovery/readiness available; anonymous, invalid and spoofed
+credentials rejected.
+
+API revision remains `ca-njk0ztnkmgrmn-api--azd-1794006389`, latest equals ready;
+API/refresh keep `api-demo:azd-deploy-1794006304`.
+Live role verification confirms unchanged Maps-account workload Data Reader,
+browser render/traffic role, and scenario-container native Cosmos Data
+Contributor for API/refresh. All 14 application ARM resources retain the
+authorized tag. SSO, registration, data, backend and scopes are unchanged.
+
+71 unit tests, frontend checks/build and four local Chromium workflows pass;
+the six-width regression checks actual rendered text bounds and bullet inset
+with long content. Screenshots inspected. Personal authenticated live-map visual
+acceptance remains separate from deterministic browser coverage.
+
+## Previous remembered Entra session deployment (historical)
+
+Previous status: Deployed
 
 ## Current scope
 

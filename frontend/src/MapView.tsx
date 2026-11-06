@@ -138,6 +138,18 @@ function popupContent(title: string, detail: string): HTMLElement {
     return content;
 }
 
+function schematicNameLines(name: string): string[] {
+    const lines: string[] = [];
+    let remaining = name;
+    while (remaining.length > 24) {
+        const space = remaining.lastIndexOf(" ", 24);
+        const end = space >= 12 ? space : 24;
+        lines.push(remaining.slice(0, end));
+        remaining = remaining.slice(end).trimStart();
+    }
+    return [...lines, remaining];
+}
+
 function Schematic(props: DisplayProps) {
     const { locations, routes, selected, onSelect, onSelectLocation, target } =
         props;
@@ -286,12 +298,19 @@ function Schematic(props: DisplayProps) {
                 })}
             {locations.map((location) => {
                 const [x, y] = project([location.longitude, location.latitude]);
+                const anchor = x < 300 ? "start" : x > 500 ? "end" : "middle";
+                const nameLines = schematicNameLines(location.name);
+                const labelY = Math.max(
+                    32,
+                    y - 24 - (nameLines.length - 1) * 28,
+                );
                 const preview =
                     target?.kind === "facility" && target.id === location.id;
                 const status = facilityStatus(location.id, props.disruptions);
                 return (
                     <g
                         key={location.id}
+                        className="schematic-facility"
                         role="button"
                         tabIndex={0}
                         aria-label={`Select facility ${location.name}`}
@@ -333,16 +352,20 @@ function Schematic(props: DisplayProps) {
                         )}
                         <text
                             x={x}
-                            y={y - 24}
-                            textAnchor="middle"
+                            y={labelY}
+                            textAnchor={anchor}
                             className="point-label"
                         >
-                            {location.name}
+                            {nameLines.map((line, index) => (
+                                <tspan x={x} dy={index ? 28 : 0} key={index}>
+                                    {line}
+                                </tspan>
+                            ))}
                         </text>
                         <text
                             x={x}
                             y={y + 32}
-                            textAnchor="middle"
+                            textAnchor={anchor}
                             className="coordinate-label"
                         >
                             {location.latitude.toFixed(3)},{" "}
@@ -351,7 +374,7 @@ function Schematic(props: DisplayProps) {
                         <text
                             x={x}
                             y={y + 49}
-                            textAnchor="middle"
+                            textAnchor={anchor}
                             className="lane-state"
                         >
                             {[preview && "TARGET PREVIEW", status]

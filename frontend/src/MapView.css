@@ -80,6 +80,10 @@
     outline: 3px solid #242424;
 }
 
+.map-panel .schematic .schematic-facility {
+    pointer-events: bounding-box;
+}
+
 .map-panel .schematic text {
     font-family: "Segoe UI", sans-serif;
     fill: #242424;
@@ -120,6 +124,8 @@
         600 14px "Segoe UI",
         sans-serif;
     cursor: pointer;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .map-panel .routing-map-marker.supplier {
@@ -201,6 +207,7 @@
 
 .map-panel .line-swatch {
     display: inline-block;
+    flex-shrink: 0;
     width: 28px;
     border-top: 4px solid #0078d4;
 }
