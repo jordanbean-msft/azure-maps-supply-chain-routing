@@ -1,0 +1,205 @@
+.map-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    font-family: "Segoe UI", sans-serif;
+    color: #242424;
+    border: 1px solid #d1d1d1;
+    background: #fff;
+}
+
+.map-panel .map-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+}
+
+.map-panel .map-heading h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.map-panel .map-heading > span,
+.map-panel .map-toolbar > span {
+    font-size: 12px;
+    color: #616161;
+}
+
+.map-panel .map-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-block: 1px solid #e0e0e0;
+}
+
+.map-panel .map-toolbar button {
+    border-radius: 0;
+}
+
+.map-panel .live-map {
+    min-width: 0;
+}
+
+.map-panel .atlas-map,
+.map-panel .schematic {
+    display: block;
+    width: 100%;
+    height: 60vh;
+    min-height: 360px;
+}
+
+.map-panel .schematic {
+    background: #fafafa;
+}
+
+.map-panel .schematic [role="button"] {
+    cursor: pointer;
+    outline-offset: 4px;
+}
+
+.map-panel .schematic [role="button"]:focus-visible {
+    outline: 3px solid #242424;
+}
+
+.map-panel .schematic text {
+    font-family: "Segoe UI", sans-serif;
+    fill: #242424;
+}
+
+.map-panel .schematic .point-label,
+.map-panel .schematic .lane-label {
+    font-size: 12px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: #fafafa;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.map-panel .schematic .coordinate-label,
+.map-panel .schematic .lane-state,
+.map-panel .schematic .schematic-label {
+    font-size: 10px;
+}
+
+.map-panel .schematic .lane-state {
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: #fafafa;
+    stroke-width: 3px;
+}
+
+.map-panel .routing-map-marker {
+    display: block;
+    max-width: 240px;
+    padding: 5px 8px;
+    border: 2px solid #616161;
+    border-radius: 0;
+    background: #fff;
+    color: #242424;
+    font:
+        600 12px "Segoe UI",
+        sans-serif;
+    cursor: pointer;
+}
+
+.map-panel .routing-map-marker.supplier {
+    border-color: #0f6cbd;
+}
+
+.map-panel .routing-map-marker.is-inspected {
+    background: #ebf3fc;
+    box-shadow: 0 0 0 2px #0f6cbd;
+}
+
+.map-panel .routing-map-marker.is-preview {
+    outline: 3px dashed #b85c00;
+    outline-offset: 3px;
+}
+
+.map-panel .routing-map-marker.is-delayed {
+    border-bottom: 5px solid #b85c00;
+}
+
+.map-panel .routing-map-marker:focus-visible {
+    outline: 3px solid #242424;
+    outline-offset: 5px;
+}
+
+.map-panel .routing-map-popup {
+    max-width: 280px;
+    padding: 10px;
+    color: #242424;
+    font:
+        13px "Segoe UI",
+        sans-serif;
+}
+
+.map-panel .routing-map-popup p {
+    margin: 6px 0 0;
+}
+
+.map-panel .map-target-status,
+.map-panel .map-applied-status,
+.map-panel .map-notice,
+.map-panel .map-route-summary,
+.map-panel .map-caption {
+    margin: 0;
+    padding: 8px 12px;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.map-panel .map-target-status.has-target {
+    border-left: 4px solid #b85c00;
+    background: #fff4ce;
+}
+
+.map-panel .map-applied-status {
+    border-left: 4px solid #616161;
+    background: #f5f5f5;
+}
+
+.map-panel .map-route-summary {
+    border-left: 4px solid #0f6cbd;
+}
+
+.map-panel .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    border-top: 1px solid #e0e0e0;
+    padding: 10px 12px;
+    font-size: 12px;
+}
+
+.map-panel .legend-inspected {
+    color: #0f6cbd;
+}
+
+.map-panel .legend-preview {
+    color: #8a4500;
+}
+
+.map-panel .legend-closed {
+    color: #c42b1c;
+}
+
+@media (max-width: 700px) {
+    .map-panel .atlas-map,
+    .map-panel .schematic {
+        height: 55vh;
+        min-height: 360px;
+    }
+
+    .map-panel .map-heading {
+        flex-wrap: wrap;
+    }
+}

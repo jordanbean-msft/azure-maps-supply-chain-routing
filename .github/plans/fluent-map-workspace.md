@@ -7,14 +7,16 @@ Deploy the integrated result to the existing demo without changing its security 
 
 - [x] Foundation (main): add Microsoft Fluent UI v9, shared square-corner theme,
   provider and `mapTarget.ts` contract. Validate dependency resolution and types.
-- [ ] Map (isolated map worktree): own `MapView.tsx`, `MapView.test.tsx` and
+- [x] Map (isolated map worktree): own `MapView.tsx`, `MapView.test.tsx` and
   optional `MapView.css` only. Add facility selection/popups, named routes,
   persistent target/applied-disruption highlights, fit-network/fit-selection,
   traffic and basemap controls. Keep the schematic accessible and interactive.
   Selection changes must not recreate the map or reset the user's camera.
   Props retain the existing contract and add optional `selectedLocation`,
   `onSelectLocation`, `target: MapTarget | null`, and `disruptions`.
-  Validate focused mocked-SDK tests and TypeScript.
+  Validated TypeScript, 14 focused mocked-SDK/schematic tests, owned-file ESLint
+  and Prettier. Facility names are `Select facility ${location.name}`; schematic
+  route names retain `Select route ${route.id}` with human-readable descriptions.
 - [x] Account (isolated account worktree): own `AuthGate*`, new account-header/
   profile modules/tests/CSS, Entra module/tests and authentication docs only.
   Provide an aligned Fluent account header, Microsoft profile photo and
