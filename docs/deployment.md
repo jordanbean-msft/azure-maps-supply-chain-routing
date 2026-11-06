@@ -50,6 +50,21 @@ resource group's location. State is
 `${RS_PROJECT_NAME}/${AZURE_ENV_NAME}.tfstate`; azd substitutes backend values
 from `infra/provider.conf.json`. The backend uses Entra, not storage keys.
 
+### Enforced organization networking
+
+Check inherited management-group policies, not only subscription assignments.
+A policy can modify `publicNetworkAccess` to `Disabled` even when the create
+request explicitly enables it. This affects both remote-state access and
+application data services. A subscription Owner role does not bypass network
+policy, and granting more Blob roles will not fix a network-denied 403.
+
+Use approved private endpoints with a connected deployment runner, or an
+approved enforced Network Security Perimeter design where supported. Do not
+disable governance, add exemption tags, enable shared keys or move state into an
+unrelated open storage account to work around the restriction. Establish a
+reachable state backend before provisioning; otherwise Terraform cannot create
+the app registration or application resources.
+
 ### Private-first configuration
 
 The safe operator configuration is **false**:

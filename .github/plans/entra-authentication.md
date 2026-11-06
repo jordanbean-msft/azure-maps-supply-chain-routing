@@ -29,11 +29,20 @@ All signed-in tenant users share the bounded demo scenarios, as before.
   extra redirects are explicit only. Refresh keeps its non-HTTP entry point and
   receives the same nonsecret settings for centralized configuration validation.
   No live plan/apply or Azure resource changes performed in this worktree.
-- [ ] Integration (main worktree): documentation, deployment scripts/workflows,
+- [x] Integration (main worktree): documentation, deployment scripts/workflows,
   environment examples and VS Code automation if commands change. Review worktree
   commits and integrate; run combined checks and local browser walkthrough.
+  Verified together: 180 warning-free Python tests (93.94% coverage), 32 React
+  tests, Chromium end-to-end walkthrough, both builds, lint/format/types and
+  zero-warning Terraform validation/10 mocked plans/TFLint. Real authenticated
+  local proxy smoke rejects anonymous, invalid and spoofed credentials.
 - [ ] Azure (main worktree; depends on all implementation/validation):
   establish dedicated azd/state context, validate quotas/policy, provision with
   azd (including registration), deploy both services and verify anonymous API
   rejection, discovery, readiness and actual deployed sign-in redirect behavior.
   Record any interactive sign-in verification limitation explicitly.
+  BLOCKED: inherited `MCAPSGovDeployPolicies` forcibly disables public access on
+  the new state account. Blob container creation and azd preview fail with 403.
+  Both dedicated groups and empty `stscroute0ec6c4` exist; no registration or app
+  resources were created. Cosmos has an equivalent policy. Resume only with
+  approved private/NSP networking and reachable state; do not override policies.
