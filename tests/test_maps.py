@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import httpx
@@ -29,7 +30,13 @@ def directions() -> dict:
                     "type": "Feature",
                     "geometry": {
                         "type": "MultiLineString",
-                        "coordinates": [[[-122.3, 47.6], [-122.6, 45.5]]],
+                        "coordinates": [
+                            [
+                                [-122.3, 47.6],
+                                [-123.0 if distance == 100000 else -121.8, 47.1],
+                                [-122.6, 45.5],
+                            ]
+                        ],
                     },
                     "properties": {
                         "type": "RoutePath",
@@ -45,9 +52,107 @@ def directions() -> dict:
     return dict(collection(100000), alternativeRoutes=[collection(120000)])
 
 
+async def test_official_v2025_feature_collections_keep_main_and_alternative_paths_separate() -> (
+    None
+):
+    # Reduced from the official v2025-01-01 Post Route Directions sample response:
+    # learn.microsoft.com/rest/api/maps/route/post-route-directions?view=rest-maps-2025-01-01
+    waypoint = {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [-122.20147, 47.60868]},
+        "properties": {
+            "type": "Waypoint",
+            "order": {"inputIndex": 0},
+            "routePathPoint": {"legIndex": 0, "pointIndex": 0},
+        },
+    }
+    primary = {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiLineString",
+            "coordinates": [
+                [[-122.20147, 47.60868], [-122.20346, 47.61016], [-122.2016, 47.61508]]
+            ],
+        },
+        "properties": {
+            "type": "RoutePath",
+            "distanceInMeters": 1520,
+            "durationInSeconds": 307,
+            "durationTrafficInSeconds": 300,
+            "legs": [
+                {
+                    "distanceInMeters": 1520,
+                    "durationInSeconds": 307,
+                    "durationTrafficInSeconds": 300,
+                    "routePathRange": {"legIndex": 0, "range": [0, 64]},
+                }
+            ],
+        },
+    }
+    alternative = {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiLineString",
+            "coordinates": [
+                [[-122.20147, 47.60868], [-122.20149, 47.60997], [-122.2016, 47.61508]]
+            ],
+        },
+        "properties": {
+            "type": "RoutePath",
+            "distanceInMeters": 713,
+            "durationInSeconds": 92,
+            "durationTrafficInSeconds": 90,
+            "legs": [
+                {
+                    "distanceInMeters": 713,
+                    "durationInSeconds": 92,
+                    "durationTrafficInSeconds": 90,
+                    "routePathRange": {"legIndex": 0, "range": [0, 29]},
+                }
+            ],
+        },
+    }
+    response = {
+        "type": "FeatureCollection",
+        "features": [waypoint, primary],
+        "alternativeRoutes": [{"type": "FeatureCollection", "features": [waypoint, alternative]}],
+    }
+    scenario = seed_scenario()
+    scenario.departure_time = datetime.now(UTC) + timedelta(minutes=5)
+    forecast_queries = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/route/directions":
+            return httpx.Response(200, json=response)
+        forecast_queries.append(request.url.params["query"])
+        severity = len(forecast_queries)
+        return httpx.Response(
+            200,
+            json={
+                "summary": {"hazards": {"maxHazardIndex": severity}},
+                "waypoints": [{"hazards": {"maxHazardIndex": severity}}] * 3,
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        provider = AzureMapsRouting(
+            http, credential(), Settings(_env_file=None), MemoryRepository()
+        )
+        routes, _ = await provider._directions(
+            scenario, scenario.locations[0], scenario.locations[3]
+        )
+    assert routes[0].distance_km == 1.52 and routes[0].duration_minutes == 5
+    assert routes[1].distance_km == 0.713 and routes[1].duration_minutes == 1.5
+    assert routes[0].geometry != routes[1].geometry
+    assert routes[0].weather_risk == 0.25 and routes[1].weather_risk == 0.5
+    assert "47.610160,-122.203460," in forecast_queries[0]
+    assert "47.609970,-122.201490," in forecast_queries[1]
+
+
 async def test_current_schema_matrix_directions_alternatives_weather_and_cache() -> None:
     requests = []
     scenario = seed_scenario()
+    scenario.departure_time = datetime.now(UTC) + timedelta(minutes=5)
     scenario.locations = [scenario.locations[0], scenario.locations[3]]
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -75,7 +180,11 @@ async def test_current_schema_matrix_directions_alternatives_weather_and_cache()
         if request.url.path == "/route/directions":
             return httpx.Response(200, json=directions())
         return httpx.Response(
-            200, json={"results": [{"hasPrecipitation": True, "wind": {"speed": {"value": 30}}}]}
+            200,
+            json={
+                "summary": {"hazards": {"maxHazardIndex": 3}},
+                "waypoints": [{"hazards": {"maxHazardIndex": index}} for index in (0, 3, 1)],
+            },
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
@@ -88,19 +197,32 @@ async def test_current_schema_matrix_directions_alternatives_weather_and_cache()
         routes, warnings = await provider.routes(scenario)
         assert len(routes) == 2 and routes[0].source == "azure_maps"
         assert routes[0].duration_minutes == 70 and routes[0].traffic_delay_minutes == 10
-        assert routes[0].weather_risk == pytest.approx(0.6)
+        assert routes[0].weather_risk == pytest.approx(0.75)
         assert routes[0].weather_delay_minutes > 0
         assert routes[0].toll_estimate == 0
         assert any("unpriced" in value for value in warnings)
         assert await provider.routes(scenario) == (routes, warnings)
-        assert len(requests) == 3
+        assert len(requests) == 4
     assert requests[0].url.params["api-version"] == "2025-01-01"
     assert requests[1].url.params["api-version"] == "2025-01-01"
     matrix_body = json.loads(requests[0].content)
     assert matrix_body["features"][0]["properties"]["pointType"] == "origins"
     assert matrix_body["travelMode"] == "truck" and matrix_body["traffic"] == "live"
     assert matrix_body["vehicleSpec"]["height"] == 4
+    assert matrix_body["departAt"] == scenario.departure_time.isoformat()
     assert json.loads(requests[1].content)["maxRouteCount"] == 2
+    assert json.loads(requests[1].content)["departAt"] == scenario.departure_time.isoformat()
+    queries = [
+        request.url.params["query"]
+        for request in requests
+        if request.url.path == "/weather/route/json"
+    ]
+    assert len(queries) == 2 and queries[0] != queries[1]
+    assert "47.100000,-123.000000," in queries[0]
+    assert "47.100000,-121.800000," in queries[1]
+    for query in queries:
+        etas = [float(point.split(",")[2]) for point in query.split(":")]
+        assert 4.9 <= etas[0] <= 5 and 74.9 <= etas[-1] <= 75
 
 
 async def test_geocode_current_geojson_and_empty_results() -> None:

@@ -4,23 +4,25 @@ import json
 import logging
 import math
 import time
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 import httpx
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.exceptions import AzureError
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from template_repository.config import Settings
 from template_repository.errors import ServiceError
 from template_repository.middleware import request_id_context
 from template_repository.models.geocode_result import GeocodeResult
 from template_repository.models.location import Location
-from template_repository.models.route_candidate import RouteCandidate
+from template_repository.models.route_candidate import Coordinate, RouteCandidate
 from template_repository.models.scenario import Scenario
 from template_repository.persistence.repository import Repository
 from template_repository.routing.identifiers import route_id
+from template_repository.routing.weather_sampling import forecast_samples
 from template_repository.telemetry import cache_hits, maps_requests, upstream_latency
 
 logger = logging.getLogger(__name__)
@@ -136,29 +138,45 @@ class AzureMapsRouting:
             "isVehicleCommercial": True,
         }
 
-    async def _weather(self, supplier: Location, factory: Location) -> float:
-        latitude = (supplier.latitude + factory.latitude) / 2
-        longitude = (supplier.longitude + factory.longitude) / 2
+    async def _weather(
+        self, scenario: Scenario, route: RouteCandidate, geometry: list[Coordinate]
+    ) -> tuple[float, float, list[str]]:
+        samples, covered_minutes, warnings = forecast_samples(
+            geometry, route.duration_minutes, scenario.departure_time, datetime.now(UTC)
+        )
+        if not samples:
+            return 0, 0, [f"{route.id}: {warning}" for warning in warnings]
         value = await self.request(
             "GET",
-            "/weather/currentConditions/json",
+            "/weather/route/json",
             params={
                 "api-version": "1.1",
-                "query": f"{latitude},{longitude}",
-                "details": "true",
-                "unit": "metric",
+                "query": ":".join(
+                    f"{latitude:.6f},{longitude:.6f},{eta:.3f}"
+                    for latitude, longitude, eta in samples
+                ),
             },
         )
         try:
-            weather = value["results"][0]
-            precipitation = weather["hasPrecipitation"]
-            if not isinstance(precipitation, bool):
-                raise ValueError("Precipitation flag required")
-            wind = _number(weather["wind"]["speed"]["value"])
-            # A midpoint current observation, not an along-route forecast.
-            return min(1.0, (0.4 if precipitation else 0.0) + wind / 150)
+            waypoints = value["waypoints"]
+            if not isinstance(waypoints, list) or len(waypoints) != len(samples):
+                raise ValueError("Missing waypoint forecast coverage")
+            indexes = [
+                value["summary"]["hazards"]["maxHazardIndex"],
+                *(point["hazards"]["maxHazardIndex"] for point in waypoints),
+            ]
+            if any(type(index) is not int or not 0 <= index <= 4 for index in indexes):
+                raise ValueError("Invalid hazard index")
+            risk = max(indexes) / 4
+            return (
+                risk,
+                covered_minutes * risk * 0.3,
+                [f"{route.id}: {warning}" for warning in warnings],
+            )
         except (KeyError, TypeError, IndexError, ValueError) as error:
-            raise ServiceError(503, "Azure Maps weather response is malformed.") from error
+            raise ServiceError(
+                503, "Azure Maps route weather response is incomplete or malformed."
+            ) from error
 
     async def _directions(
         self, scenario: Scenario, supplier: Location, factory: Location
@@ -175,21 +193,20 @@ class AzureMapsRouting:
             ],
             "travelMode": "truck",
             "vehicleSpec": self._spec(scenario),
-            "departAt": scenario.departure_time.isoformat(),
             "optimizeRoute": "fastestWithTraffic",
             "routeOutputOptions": ["routePath"],
             "maxRouteCount": 2,
         }
+        if scenario.departure_time > datetime.now(UTC):
+            body["departAt"] = scenario.departure_time.isoformat()
         value = await self.request("POST", "/route/directions", body=body)
         warnings = []
-        try:
-            risk = await self._weather(supplier, factory)
-        except ServiceError:
-            risk = 0
+        if "departAt" not in body:
             warnings.append(
-                f"Weather unavailable for {supplier.name} → {factory.name}; zero weather adjustment is not an observation."
+                "Selected departure is in the past; routing and weather use current departure instead."
             )
         routes = []
+        road_geometries = []
         try:
             alternatives = value.get("alternativeRoutes", [])
             if not isinstance(alternatives, list):
@@ -208,9 +225,10 @@ class AzureMapsRouting:
                     warnings.append(
                         f"Truck coverage incomplete for {supplier.name} → {factory.name}."
                     )
-                geometry = [
-                    coordinate for leg in path["geometry"]["coordinates"] for coordinate in leg
-                ]
+                geometry = TypeAdapter(list[Coordinate]).validate_python(
+                    [coordinate for leg in path["geometry"]["coordinates"] for coordinate in leg]
+                )
+                road_geometries.append(geometry)
                 # Bound Cosmos snapshots while retaining endpoints.
                 stride = max(1, math.ceil(len(geometry) / 250))
                 sampled = geometry[::stride]
@@ -227,18 +245,28 @@ class AzureMapsRouting:
                         distance_km=_number(properties["distanceInMeters"]) / 1000,
                         duration_minutes=duration,
                         traffic_delay_minutes=max(0, duration - base),
-                        weather_risk=risk,
-                        weather_delay_minutes=duration * risk * 0.3,
                         toll_estimate=0,
                         source="azure_maps",
                     )
                 )
         except (KeyError, TypeError, IndexError, ValueError, ValidationError) as error:
             raise ServiceError(503, "Azure Maps directions response is malformed.") from error
+        # Forecast each alternative's own road path, not the endpoints' midpoint.
+        for route, geometry in zip(routes, road_geometries, strict=True):
+            try:
+                risk, delay, coverage_warnings = await self._weather(scenario, route, geometry)
+                route.weather_risk, route.weather_delay_minutes = risk, delay
+                warnings.extend(coverage_warnings)
+            except ServiceError:
+                warnings.append(
+                    f"Weather unavailable or incomplete for {route.id}; zero weather adjustment is not an observation."
+                )
         return routes, warnings
 
     async def routes(self, scenario: Scenario) -> tuple[list[RouteCandidate], list[str]]:
         signature = {
+            "routing_version": API_VERSION,
+            "weather_version": "route-1.1",
             "locations": [x.model_dump(mode="json") for x in scenario.locations],
             "truck": scenario.truck.model_dump(),
             "departure_time": scenario.departure_time.isoformat(),
@@ -271,7 +299,9 @@ class AzureMapsRouting:
             "travelMode": "truck",
             "vehicleSpec": self._spec(scenario),
             "traffic": "live",
-            "departAt": scenario.departure_time.isoformat(),
+            "departAt": scenario.departure_time.isoformat()
+            if scenario.departure_time > datetime.now(UTC)
+            else "now",
         }
         matrix = await self.request("POST", "/route/matrix", body=body)
         try:
@@ -301,9 +331,15 @@ class AzureMapsRouting:
         routes = [route for candidates, _ in results for route in candidates]
         warnings = [
             "Tolls are unavailable from this API: zero is an unpriced estimate, not a toll-free guarantee.",
-            "Weather risk/delay are estimates from current midpoint observations, not a route forecast.",
+            "Weather risk/delay are estimates from sampled road-vertex forecasts within 120 minutes "
+            "of now; pass-through times are distance-proportional estimates and unsampled conditions are unknown.",
             "Allocation costs scale linearly per unit; truck profile is a routing assumption, not fleet dispatch.",
         ] + [warning for _, values in results for warning in values]
+        if body["departAt"] == "now":
+            warnings.append(
+                "Selected departure is in the past; routing and weather use current departure instead."
+            )
+        warnings = list(dict.fromkeys(warnings))
         if self.settings.maps_cache_seconds:
             try:
                 await self.repository.create(
