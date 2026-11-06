@@ -13,29 +13,36 @@ import type { Disruption, Scenario } from "./types";
 
 vi.mock("azure-maps-control", () => ({}));
 
-class MockEventSource {
-    static instances: MockEventSource[] = [];
-    listeners = new Map<string, (event: MessageEvent) => void>();
-    onerror: (() => void) | null = null;
+class MockStream {
+    static instances: MockStream[] = [];
+    controller!: ReadableStreamDefaultController<Uint8Array>;
     close = vi.fn();
-    constructor(public url: string) {
-        MockEventSource.instances.push(this);
-    }
-    addEventListener(name: string, callback: (event: MessageEvent) => void) {
-        this.listeners.set(name, callback);
+    response: Response;
+    constructor() {
+        this.response = new Response(
+            new ReadableStream<Uint8Array>({
+                start: (controller) => {
+                    this.controller = controller;
+                },
+                cancel: this.close,
+            }),
+            { headers: { "Content-Type": "text/event-stream" } },
+        );
+        MockStream.instances.push(this);
     }
     emit(sequence: number, runId = run.id) {
-        this.listeners.get("progress")?.(
-            new MessageEvent("progress", {
-                data: JSON.stringify({
+        if (this.close.mock.calls.length) return;
+        this.controller.enqueue(
+            new TextEncoder().encode(
+                `event: progress\ndata: ${JSON.stringify({
                     sequence,
                     run_id: runId,
                     status: "completed",
                     progress: 1,
                     stage: "completed",
                     message: "Done",
-                }),
-            }),
+                })}\n\n`,
+            ),
         );
     }
 }
@@ -50,6 +57,7 @@ function setupApi({ stale = false, running = false } = {}) {
                 headers: { "Content-Type": "application/json", ETag: '"v1"' },
             });
         if (url === "/api/config") return response(config);
+        if (url.endsWith("/events")) return new MockStream().response;
         if (url.endsWith("/locations:geocode"))
             return response([
                 {
@@ -101,7 +109,6 @@ function setupApi({ stale = false, running = false } = {}) {
         return response(saved);
     });
     vi.stubGlobal("fetch", fetch);
-    vi.stubGlobal("EventSource", MockEventSource);
     return {
         fetch,
         complete: () => {
@@ -118,7 +125,7 @@ async function seed() {
 }
 
 beforeEach(() => {
-    MockEventSource.instances = [];
+    MockStream.instances = [];
 });
 
 describe("network planning workspace", () => {
@@ -146,7 +153,7 @@ describe("network planning workspace", () => {
             "/api/scenarios/scenario-1",
             expect.objectContaining({
                 method: "PUT",
-                headers: expect.objectContaining({ "If-Match": '"v1"' }),
+                headers: expect.objectContaining({ "if-match": '"v1"' }),
                 body: expect.stringContaining('"quantity":75'),
             }),
         );
@@ -228,7 +235,7 @@ describe("network planning workspace", () => {
             screen.getByRole("button", { name: "Optimize network" }),
         );
         await screen.findByText(/RUNNING · routes/);
-        const source = MockEventSource.instances[0];
+        const source = MockStream.instances[0];
         await act(async () => {
             source.emit(2);
         });
@@ -263,7 +270,9 @@ describe("network planning workspace", () => {
         await screen.findByText(/RUNNING · routes/);
         api.complete();
         await act(async () => {
-            MockEventSource.instances[0].onerror?.();
+            MockStream.instances[0].controller.error(
+                new Error("Connection lost"),
+            );
         });
         await screen.findByRole("table");
         expect(screen.getByText(/Run finished/)).toBeInTheDocument();
@@ -379,7 +388,7 @@ describe("network planning workspace", () => {
         const { fetch } = setupApi();
         const original = fetch.getMockImplementation()!;
         fetch.mockImplementation(async (url, options) =>
-            url.includes("/runs/")
+            url.includes("/runs/") && !url.endsWith("/events")
                 ? new Response(
                       JSON.stringify({
                           ...run,
@@ -425,7 +434,7 @@ describe("network planning workspace", () => {
         const original = fetch.getMockImplementation()!;
         let newer = true;
         fetch.mockImplementation(async (url, options) =>
-            url.includes("/runs/")
+            url.includes("/runs/") && !url.endsWith("/events")
                 ? new Response(
                       JSON.stringify({
                           ...run,
@@ -449,7 +458,7 @@ describe("network planning workspace", () => {
         await screen.findByText(/RUNNING · allocation/);
         newer = false;
         await act(async () => {
-            MockEventSource.instances[0].emit(2);
+            MockStream.instances[0].emit(2);
         });
         expect(screen.getByText(/RUNNING · allocation/)).toBeInTheDocument();
         expect(screen.queryByText(/RUNNING · routes/)).not.toBeInTheDocument();

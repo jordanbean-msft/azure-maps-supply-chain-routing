@@ -19,6 +19,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@azure/msal-browser": "^4.27.0",
     "azure-maps-control": "^3.7.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

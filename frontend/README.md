@@ -1,9 +1,11 @@
 # Routing Lab web
 
 React/TypeScript with the Microsoft Azure Maps Web SDK directly managed by React
-effects. Native form controls avoid an additional UI dependency. No service keys,
-tokens, or scenario contents are written to browser storage; only active scenario
-and run identifiers plus their concurrency token are remembered. A remembered run
+effects. Native form controls avoid an additional UI dependency. No service keys
+or scenario contents are written to browser storage. MSAL stores its sign-in
+cache (including tokens) in tab-scoped `sessionStorage`, never `localStorage`.
+Only active scenario and run identifiers plus their concurrency token are
+remembered in `localStorage`. A remembered run
 is restored only when its scenario ETag still matches, preventing old currency or
 cost assumptions from being mislabeled after a reload.
 
@@ -47,6 +49,31 @@ Run `uv sync --extra dev` in the repository root first. Existing processes are
 never reused or stopped; an occupied test port fails explicitly. Override
 `E2E_API_PORT` and `E2E_WEB_PORT` to use isolated ports. Reports and failure traces
 are ignored in `.gitignore` and `.prettierignore`. `npm run e2e` is an alias.
+`E2E_API_CWD` optionally points to a separate backend worktree with its own synced
+uv environment; the default is this repository root.
+
+## Microsoft Entra sign-in
+
+The public `GET /api/auth/config` discovery document is loaded before mounting
+the workspace. Only explicit `enabled: false` enables the unauthenticated local
+demo. Unavailable or invalid discovery fails closed with a retry control.
+
+Enabled deployments use the Microsoft `@azure/msal-browser` library's
+authorization-code flow with PKCE. The API supplies a single tenant ID, client ID
+and full delegated scope ending in `/access_as_user`. One secretless registration
+hosts the SPA and API; its redirect and post-logout redirect must be the current
+browser origin followed by `/` (including the trailing slash). No build-time
+identity configuration, client secret, or API key is needed.
+
+Sign-in and sign-out are explicit user actions. Every API request, including the
+Azure Maps token broker and fetch-based SSE stream, first calls
+`acquireTokenSilent` and sends the API access token in the `Authorization` header.
+Tokens are never put in URLs or logged. An interaction-required response
+unmounts the workspace and offers sign-in instead of automatically redirecting
+or retrying indefinitely. Sign-out immediately unmounts the workspace, clears
+the remembered scenario and MSAL cache, and redirects through Microsoft logout.
+All signed-in tenant users share the demo scenarios; browser state is not an
+ownership boundary.
 
 ## Data and interaction guarantees
 
@@ -60,6 +87,10 @@ are ignored in `.gitignore` and `.prettierignore`. `npm run e2e` is an alias.
 - Optimization uses SSE progress plus persisted run reads, with bounded 2.5-second
   polling as a fallback/watchdog. Sequence/run IDs and timestamps reject obsolete
   results. Requests, streams, SDK maps, and timers clean up on unmount.
+  SSE uses authenticated fetch, not native `EventSource`; its streaming decoder
+  handles partial UTF-8, line endings and event boundaries. A closed or failed
+  stream falls back to polling rather than reconnecting, so no `Last-Event-ID`
+  replay is needed. No bearer tokens are sent in query strings.
 - Active saved scenarios refresh/re-optimize every 60 seconds by default (2/5
   minute options and Pause are available). Hidden tabs, dirty forms, active runs,
   and overlapping requests are skipped. This uses existing GET scenario and POST
@@ -85,9 +116,10 @@ token renewal, attribution, and traffic require a configured live account.
 
 ## Validation handoff
 
-Validated on Node 22: lint (zero warnings), typecheck (including browser tests),
-15 mocked component/integration tests, production build, formatting check, and
-Playwright test discovery. The real-backend browser test is intended to run after
-the backend worktree is integrated; discovery does not claim that flow passed.
+Run the commands above on Node 22 to validate lint, typecheck (including browser
+tests), component/authentication/request/stream tests, production build,
+formatting and the real-backend demo browser flow. The API must implement auth
+discovery, even when authentication is disabled. Mocked authentication tests do
+not claim a real tenant sign-in was performed.
 Vite reports its advisory large-chunk warning for the bundled Azure Maps SDK
 (approximately 2 MB JavaScript before gzip); the production build succeeds.

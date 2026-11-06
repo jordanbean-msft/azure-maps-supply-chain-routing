@@ -1,4 +1,5 @@
 import type { ProblemDetails } from "./types";
+import { authorizationHeaders } from "./auth";
 
 export class ApiError extends Error {
     constructor(
@@ -14,11 +15,26 @@ export interface Resource<T> {
     etag: string | null;
 }
 
+export async function apiFetch(
+    path: string,
+    options: RequestInit = {},
+): Promise<Response> {
+    const authorization = await authorizationHeaders();
+    options.signal?.throwIfAborted();
+    const headers = new Headers(options.headers);
+    for (const [name, value] of Object.entries(authorization))
+        headers.set(name, value);
+    return fetch(`/api${path}`, {
+        ...options,
+        headers: Object.fromEntries(headers),
+    });
+}
+
 export async function request<T>(
     path: string,
     options: RequestInit = {},
 ): Promise<Resource<T>> {
-    const response = await fetch(`/api${path}`, {
+    const response = await apiFetch(path, {
         ...options,
         signal: options.signal
             ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)])
@@ -26,7 +42,7 @@ export async function request<T>(
         headers: {
             Accept: "application/json",
             ...(options.body ? { "Content-Type": "application/json" } : {}),
-            ...options.headers,
+            ...Object.fromEntries(new Headers(options.headers)),
         },
     });
     if (!response.ok) {

@@ -13,7 +13,7 @@ All signed-in tenant users share the bounded demo scenarios, as before.
   Settings: `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_API_SCOPE`.
   Validate RS256 signature, v2 issuer/audience/tenant/time and delegated scope.
   Acceptance: focused token and API tests, Ruff, mypy, warning-free tests.
-- [ ] Frontend (auth-web worktree): `frontend/` only.
+- [x] Frontend (auth-web worktree): `frontend/` only.
   Read discovery before mounting the workspace; MSAL login/logout; bearer tokens
   on every API and streamed SSE call, never URL tokens. Local disabled auth stays
   compatible. Acceptance: auth and stream tests, frontend lint/types/tests/build.

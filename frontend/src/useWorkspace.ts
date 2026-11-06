@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { ApiError, errorMessage, request, scenarioPath } from "./api";
+import { consumeEvents } from "./eventStream";
 import type {
     AppConfig,
     Disruption,
@@ -378,7 +379,7 @@ export function useWorkspace() {
     useEffect(() => {
         if (!runId || !scenarioId) return;
         const controller = new AbortController();
-        let source: EventSource | null = null;
+        const streamController = new AbortController();
         let sequence = 0;
         let pending = false;
         let finished = false;
@@ -415,7 +416,7 @@ export function useWorkspace() {
                 });
                 if (done) {
                     finished = true;
-                    source?.close();
+                    streamController.abort();
                     if (data.status === "completed") {
                         patch({
                             result: data,
@@ -451,13 +452,13 @@ export function useWorkspace() {
                 }
             }
         };
-        try {
-            source = new EventSource(`/api${path}/events`);
-            source.addEventListener("progress", (message) => {
+        void consumeEvents(
+            `${path}/events`,
+            streamController.signal,
+            (message) => {
+                if (message.type !== "progress") return;
                 try {
-                    const event = JSON.parse(
-                        (message as MessageEvent<string>).data,
-                    ) as RunEvent;
+                    const event = JSON.parse(message.data) as RunEvent;
                     if (
                         controller.signal.aborted ||
                         event.run_id !== runId ||
@@ -478,9 +479,12 @@ export function useWorkspace() {
                                 "Invalid progress event — polling status",
                         });
                 }
-            });
-            source.onerror = () => {
-                source?.close();
+            },
+        )
+            .catch(() => {
+                // Polling below is the watchdog; do not loop interactive auth or SSE reconnects.
+            })
+            .finally(() => {
                 if (!finished && !controller.signal.aborted) {
                     patch({
                         connection:
@@ -488,17 +492,14 @@ export function useWorkspace() {
                     });
                     void read();
                 }
-            };
-        } catch {
-            /* EventSource unavailable: the same status resource is polled below. */
-        }
+            });
         void read();
         const interval = window.setInterval(() => {
             void read();
         }, 2500);
         return () => {
             controller.abort();
-            source?.close();
+            streamController.abort();
             window.clearInterval(interval);
         };
     }, [runId, scenarioId]);

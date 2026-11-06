@@ -18,9 +18,12 @@ export default defineConfig({
     webServer: [
         {
             command: "uv run supply-chain-routing",
-            cwd: path.resolve(import.meta.dirname, ".."),
+            cwd:
+                process.env.E2E_API_CWD ??
+                path.resolve(import.meta.dirname, ".."),
             env: {
                 APP_MODE: "demo",
+                AUTH_ENABLED: "false",
                 AZURE_ENVIRONMENT: "production",
                 HOST: "127.0.0.1",
                 PORT: apiPort,
