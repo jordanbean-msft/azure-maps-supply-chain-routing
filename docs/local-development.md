@@ -80,12 +80,23 @@ private file containing a valid delegated API token. CI instead uses
 ## Demo walkthrough
 
 1. Load the Houston sample. Use **Network** to edit supply, capacity and cost assumptions.
-2. Save and optimize; compare allocated routes, ETA, and itemized estimated cost.
+2. Save and choose **Calculate shipment plan**. The planner minimizes estimated
+   total shipment cost across the available routes, assigns all supplier supply
+   and does not exceed factory capacity. It is not a single fastest route or a
+   truck dispatch schedule. Compare recommended quantities, ETA and itemized cost.
+   Blue lines show recommended shipments, with units labeled. Unused alternatives
+   are hidden by default; enable **Show unused alternatives** for dashed slate lines.
 3. Select a route on the map or in the table. In live mode, use **Fit selected**,
    traffic overlays, satellite view and facility popups; drag markers to edit coordinates.
+   Purple means inspection only: it does not change recommended quantities or
+   recalculate the plan. Selecting an unused alternative makes it visible even
+   when other alternatives are hidden. The default light grayscale basemap and
+   white route casings keep routes readable over roads, imagery and traffic.
 4. Open **Disruptions**, choose **Close a route** or **Delay a facility**, then
-   select a named route or facility on the map. Confirm the orange target preview
-   before applying. Optimize again to update the displayed estimates.
+   select a named route or facility on the map. Confirm the dashed magenta target
+   preview before applying. Calculate a new shipment plan to update estimates.
+   Target previews are visible only in Disruptions. Network-wide fuel/weather
+   previews use a scope banner rather than recoloring every route.
 5. Change fuel price or delay penalty to show an economically different ranking.
 6. Save changes and reload the scenario while the API process is still running.
 

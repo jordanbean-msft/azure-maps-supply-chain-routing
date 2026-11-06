@@ -3,6 +3,48 @@ import { expect, it, vi } from "vitest";
 import RouteResults from "./RouteResults";
 import { run, scenario } from "./test-fixtures";
 
+it("explains the plan, distinguishes recommended shipments from alternatives and does not auto-inspect a route", () => {
+    const view = render(
+        <RouteResults
+            scenario={scenario}
+            result={run}
+            previous={null}
+            selected={null}
+            onSelect={vi.fn()}
+            stale={false}
+        />,
+    );
+    expect(
+        screen.getByText(
+            /The plan assigns 50 shipment units across 1 recommended route/,
+        ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Recommended · 50 units/)).toBeInTheDocument();
+    expect(screen.getByText(/Alternative · no shipments/)).toBeInTheDocument();
+    expect(screen.queryByText("Recommended shipment")).not.toBeInTheDocument();
+    expect(
+        within(screen.getByRole("table")).getAllByRole("button", {
+            pressed: false,
+        }),
+    ).toHaveLength(2);
+    view.rerender(
+        <RouteResults
+            scenario={scenario}
+            result={run}
+            previous={null}
+            selected="route-2"
+            onSelect={vi.fn()}
+            stale={false}
+        />,
+    );
+    expect(
+        screen.getByText(/Unused alternative · hypothetical estimate/),
+    ).toBeInTheDocument();
+    expect(
+        screen.getByText(/The plan assigns 50 shipment units/),
+    ).toBeInTheDocument();
+});
+
 it("estimates unallocated alternatives with effective zero-price fuel and complete driver time without changing allocation totals", () => {
     render(
         <RouteResults

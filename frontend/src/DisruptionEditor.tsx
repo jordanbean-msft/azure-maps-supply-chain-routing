@@ -137,7 +137,7 @@ export default function DisruptionEditor({
             </div>
             <p className="muted">
                 Choose what changes and where it applies. Preview the target on
-                the map before applying, then optimize again.
+                the map before applying, then calculate a new shipment plan.
             </p>
             <fieldset disabled={disabled} className="disruption-fields">
                 <legend className="sr-only">New disruption</legend>
@@ -217,7 +217,7 @@ export default function DisruptionEditor({
                     <strong>{description}</strong>
                     <p>
                         {global
-                            ? "Applies to all routes, not an individual facility. The map highlights the network."
+                            ? "Applies to all routes, not an individual facility. The map banner identifies the network-wide scope; route colors still show the shipment plan."
                             : kind === "road_closure"
                               ? route
                                   ? "This candidate is outlined on the map. Only this route option is excluded; other options in the lane remain available."
@@ -229,7 +229,8 @@ export default function DisruptionEditor({
                 </div>
                 {kind === "road_closure" && !routes.length && (
                     <p className="muted">
-                        Optimize first to generate selectable route options.
+                        Calculate a shipment plan first to generate selectable
+                        route options.
                     </p>
                 )}
                 <Field label="Disruption name">

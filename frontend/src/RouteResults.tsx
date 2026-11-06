@@ -81,14 +81,11 @@ export default function RouteResults({
     const locations = new Map(
         scenario.locations.map((location) => [location.id, location]),
     );
-    const selectedRoute =
-        result?.routes.find((route) => route.id === selected) ??
-        result?.routes[0];
+    const selectedRoute = result?.routes.find((route) => route.id === selected);
     const allocations = new Map(
-        result?.allocations.map((allocation) => [
-            allocation.route_id,
-            allocation,
-        ]),
+        result?.allocations
+            .filter((allocation) => allocation.quantity > 0)
+            .map((allocation) => [allocation.route_id, allocation]),
     );
     const selectedAllocation =
         selectedRoute && allocations.get(selectedRoute.id);
@@ -105,7 +102,11 @@ export default function RouteResults({
         const cost = (route: RouteCandidate) =>
             allocations.get(route.id)?.unit_cost.total ??
             estimateCost(route, effectiveProfile).total;
-        return cost(a) - cost(b) || a.id.localeCompare(b.id);
+        return (
+            Number(allocations.has(b.id)) - Number(allocations.has(a.id)) ||
+            cost(a) - cost(b) ||
+            a.id.localeCompare(b.id)
+        );
     });
     return (
         <section
@@ -114,29 +115,30 @@ export default function RouteResults({
         >
             <div className="panel-heading">
                 <div>
-                    <h2 id="results-title">Routes and costs</h2>
+                    <h2 id="results-title">Shipment plan and route options</h2>
                 </div>
                 <Badge appearance="tint" color={stale ? "warning" : "subtle"}>
                     {stale
                         ? "Previous snapshot"
                         : result
                           ? "Completed snapshot"
-                          : "Not optimized"}
+                          : "No plan yet"}
                 </Badge>
             </div>
             {!result ? (
                 <div className="empty-state">
                     <h3>No routes yet</h3>
                     <p>
-                        Save a scenario, then optimize to compare routes and
-                        allocate supplier supply within factory capacity.
+                        Save a scenario, then choose Calculate shipment plan.
+                        The planner compares route costs and assigns supplier
+                        quantities to factories within capacity.
                     </p>
                 </div>
             ) : (
                 <>
                     <div className="result-summary">
                         <div>
-                            <span>Allocated total</span>
+                            <span>Estimated plan cost</span>
                             <strong>
                                 {money(result.total_cost, currency)}
                             </strong>
@@ -151,6 +153,10 @@ export default function RouteResults({
                                     ),
                                 )}
                             </strong>
+                        </div>
+                        <div>
+                            <span>Recommended routes</span>
+                            <strong>{allocations.size}</strong>
                         </div>
                         <div>
                             <span>Candidate routes</span>
@@ -169,17 +175,34 @@ export default function RouteResults({
                             </div>
                         )}
                     </div>
+                    <p className="plan-outcome">
+                        The plan assigns{" "}
+                        {number(
+                            [...allocations.values()].reduce(
+                                (sum, item) => sum + item.quantity,
+                                0,
+                            ),
+                        )}{" "}
+                        shipment units across {allocations.size} recommended{" "}
+                        {allocations.size === 1 ? "route" : "routes"}.
+                        Recommended routes are blue on the map. Selecting a
+                        route only inspects it; it does not change this plan.
+                    </p>
                     <p className="muted">
-                        Ranked by unit cost. Unallocated alternatives show
-                        browser-estimated unit costs under the editor
-                        assumptions; only allocated rows contribute to the run
-                        total. All tolls and weather risks are estimates.
+                        Recommended shipments first, then unused alternatives;
+                        each group is ranked by unit cost. Alternatives carry no
+                        shipments and show browser-estimated unit costs under
+                        the editor assumptions. Only recommended rows contribute
+                        to the plan cost. The cheapest individual route may not
+                        be usable for every supplier because factory capacity is
+                        limited. Tolls and weather risks are estimates.
                     </p>
                     <div className="table-scroll">
                         <table>
                             <caption className="sr-only">
-                                Route candidates and allocations. Choose a route
-                                to inspect its geometry and cost components.
+                                Recommended shipments and unused route options.
+                                Choose a route to inspect, not to change the
+                                plan.
                             </caption>
                             <thead>
                                 <tr>
@@ -204,11 +227,13 @@ export default function RouteResults({
                                         <tr
                                             key={route.id}
                                             data-route-id={route.id}
-                                            className={
-                                                selectedRoute?.id === route.id
-                                                    ? "selected-row"
-                                                    : ""
-                                            }
+                                            className={[
+                                                allocation && "recommended-row",
+                                                selectedRoute?.id ===
+                                                    route.id && "selected-row",
+                                            ]
+                                                .filter(Boolean)
+                                                .join(" ")}
                                         >
                                             <th scope="row">
                                                 <Button
@@ -235,6 +260,10 @@ export default function RouteResults({
                                                         route.factory_id,
                                                     )?.name ?? route.factory_id}
                                                     <small>
+                                                        {allocation
+                                                            ? `Recommended · ${number(allocation.quantity)} units`
+                                                            : "Alternative · no shipments"}
+                                                        {" · "}
                                                         Option{" "}
                                                         {result.routes
                                                             .filter(
@@ -325,6 +354,12 @@ export default function RouteResults({
                         delay + simulated delay. ² Estimated, not guaranteed.
                         Cost per shipment unit scales linearly with quantity.
                     </p>
+                    {!selectedRoute && (
+                        <p className="muted">
+                            Select a route on the map or in this table to
+                            inspect its ETA and itemized costs.
+                        </p>
+                    )}
                     {selectedRoute && costs && (
                         <div className="cost-detail">
                             <div>
@@ -337,8 +372,8 @@ export default function RouteResults({
                                 </h3>
                                 <p>
                                     {selectedAllocation
-                                        ? "Persisted allocation"
-                                        : "Alternative comparison estimate"}{" "}
+                                        ? "Recommended shipment"
+                                        : "Unused alternative · hypothetical estimate"}{" "}
                                     · {number(quantity)} units ×{" "}
                                     {money(costs.total, currency)} / unit
                                 </p>

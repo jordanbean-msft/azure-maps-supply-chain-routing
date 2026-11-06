@@ -131,6 +131,44 @@ beforeEach(() => {
 });
 
 describe("network planning workspace", () => {
+    it("explains the allocation objective and keeps inspection separate from disruption targeting", async () => {
+        const { fetch } = setupApi();
+        render(<App />);
+        await seed();
+        const calculate = screen.getByRole("button", {
+            name: "Calculate shipment plan",
+        });
+        expect(calculate).toHaveAccessibleDescription(
+            expect.stringContaining(
+                "lowest estimated total-cost way to send all supplier supply to factories without exceeding factory capacities",
+            ),
+        );
+        fireEvent.click(calculate);
+        const table = await screen.findByRole("table");
+        expect(screen.queryByText(/^INSPECTED/)).not.toBeInTheDocument();
+        fireEvent.click(within(table).getAllByRole("button")[1]);
+        expect(screen.getByText(/^INSPECTED/)).toHaveTextContent(
+            "Unused alternative · no shipments",
+        );
+        expect(screen.queryByText(/^TARGET PREVIEW/)).not.toBeInTheDocument();
+        expect(
+            fetch.mock.calls.filter(([url]) => url.endsWith("/optimize")),
+        ).toHaveLength(1);
+        expect(
+            screen.getByText(/The plan assigns 50 shipment units/),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("tab", { name: "Disruptions" }));
+        fireEvent.change(screen.getByLabelText("Route to close"), {
+            target: { value: "route-2" },
+        });
+        expect(screen.getByText(/^TARGET PREVIEW/)).toBeVisible();
+        fireEvent.click(screen.getByRole("tab", { name: "Network" }));
+        expect(screen.queryByText(/^TARGET PREVIEW/)).not.toBeInTheDocument();
+        expect(screen.getByText(/^INSPECTED/)).toHaveTextContent(
+            "Unused alternative",
+        );
+    });
+
     it("edits and persists full scenarios with ETags, optimizes, selects alternatives, and applies a closure", async () => {
         const { fetch } = setupApi();
         render(<App />);
@@ -143,12 +181,12 @@ describe("network planning workspace", () => {
             target: { value: "75" },
         });
         expect(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         ).toBeDisabled();
         fireEvent.click(screen.getByRole("button", { name: "Save scenario" }));
         await waitFor(() =>
             expect(
-                screen.getByRole("button", { name: "Optimize network" }),
+                screen.getByRole("button", { name: "Calculate shipment plan" }),
             ).toBeEnabled(),
         );
         expect(fetch).toHaveBeenCalledWith(
@@ -160,7 +198,7 @@ describe("network planning workspace", () => {
             }),
         );
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         await screen.findByRole("table");
         expect(
@@ -194,7 +232,7 @@ describe("network planning workspace", () => {
         );
         expect(screen.getByText(/Results may be stale/)).toBeInTheDocument();
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         await waitFor(() =>
             expect(
@@ -235,7 +273,7 @@ describe("network planning workspace", () => {
         const view = render(<App />);
         await seed();
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         await screen.findByText(/RUNNING · routes/);
         const source = MockStream.instances[0];
@@ -268,7 +306,7 @@ describe("network planning workspace", () => {
         render(<App />);
         await seed();
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         await screen.findByText(/RUNNING · routes/);
         api.complete();
@@ -407,7 +445,7 @@ describe("network planning workspace", () => {
         render(<App />);
         await seed();
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         expect(await screen.findByRole("alert")).toHaveTextContent(
             "Azure routing unavailable",
@@ -457,7 +495,7 @@ describe("network planning workspace", () => {
         render(<App />);
         await seed();
         fireEvent.click(
-            screen.getByRole("button", { name: "Optimize network" }),
+            screen.getByRole("button", { name: "Calculate shipment plan" }),
         );
         await screen.findByText(/RUNNING · allocation/);
         newer = false;

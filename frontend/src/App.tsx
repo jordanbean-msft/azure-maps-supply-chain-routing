@@ -18,11 +18,12 @@ import RouteResults from "./RouteResults";
 import ScenarioEditor from "./ScenarioEditor";
 import type { MapTarget } from "./mapTarget";
 import { useWorkspace } from "./useWorkspace";
-import type { Disruption, Location, RouteCandidate } from "./types";
+import type { Allocation, Disruption, Location, RouteCandidate } from "./types";
 import "./style.css";
 
 const noRoutes: RouteCandidate[] = [];
 const noLocations: Location[] = [];
+const noAllocations: Allocation[] = [];
 
 export default function App() {
     const workspace = useWorkspace();
@@ -44,7 +45,7 @@ export default function App() {
     const routes = workspace.result?.routes ?? noRoutes;
     const selectedId = routes.some((route) => route.id === selected)
         ? selected
-        : (routes[0]?.id ?? null);
+        : null;
     const facilityId = scenario?.locations.some(
         (location) => location.id === selectedLocation,
     )
@@ -75,18 +76,18 @@ export default function App() {
         (id: string) => {
             setSelected(id);
             setSelectedLocation(null);
-            if (disruptionKind === "road_closure")
+            if (tab === "disruptions" && disruptionKind === "road_closure")
                 setTarget({ kind: "route", id });
         },
-        [disruptionKind],
+        [disruptionKind, tab],
     );
     const selectLocation = useCallback(
         (id: string) => {
             setSelectedLocation(id);
-            if (disruptionKind === "facility_delay")
+            if (tab === "disruptions" && disruptionKind === "facility_delay")
                 setTarget({ kind: "facility", id });
         },
-        [disruptionKind],
+        [disruptionKind, tab],
     );
     const chooseTarget = (next: MapTarget | null) => {
         setTarget(next);
@@ -172,6 +173,7 @@ export default function App() {
                             <Button
                                 appearance="primary"
                                 icon={<PlayRegular />}
+                                aria-describedby="shipment-plan-explanation"
                                 disabled={
                                     locked ||
                                     workspace.dirty ||
@@ -179,13 +181,23 @@ export default function App() {
                                 }
                                 onClick={() => void workspace.optimize()}
                             >
-                                {running ? "Optimizing…" : "Optimize network"}
+                                {running
+                                    ? "Calculating plan…"
+                                    : "Calculate shipment plan"}
                             </Button>
                         </>
                     )}
                 </div>
             </section>
 
+            <p id="shipment-plan-explanation" className="planning-explanation">
+                <strong>What this calculates:</strong> the lowest estimated
+                total-cost way to send all supplier supply to factories without
+                exceeding factory capacities. It compares available routes using
+                traffic, weather, your costs and simulated disruptions. This is
+                a shipment allocation, not a single fastest route or a truck
+                dispatch schedule.
+            </p>
             <div className="workspace-status">
                 <span role="status">
                     {!workspace.config
@@ -213,8 +225,8 @@ export default function App() {
             {workspace.stale && (
                 <MessageBar intent="warning">
                     <MessageBarBody>
-                        Results may be stale. Save edits and optimize to update
-                        the map and costs.
+                        Results may be stale. Save edits and calculate a new
+                        shipment plan to update the map and costs.
                     </MessageBarBody>
                 </MessageBar>
             )}
@@ -326,7 +338,7 @@ export default function App() {
                                     disabled={locked || workspace.dirty}
                                     onClick={() => void refresh(false, true)}
                                 >
-                                    Refresh & optimize now
+                                    Refresh & recalculate plan
                                 </Button>
                                 <p className="muted">
                                     {workspace.dirty
@@ -360,9 +372,12 @@ export default function App() {
                         }
                         locations={scenario?.locations ?? noLocations}
                         routes={routes}
+                        allocations={
+                            workspace.result?.allocations ?? noAllocations
+                        }
                         selected={selectedId}
                         selectedLocation={facilityId}
-                        target={validTarget}
+                        target={tab === "disruptions" ? validTarget : null}
                         disruptions={scenario?.disruptions}
                         disabled={locked || !scenario}
                         onSelect={selectRoute}

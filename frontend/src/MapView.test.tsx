@@ -19,6 +19,7 @@ const sdk = vi.hoisted(() => ({
     }[],
     options: null as null | {
         center: number[];
+        style: string;
         authOptions: {
             clientId: string;
             getToken: (
@@ -32,7 +33,13 @@ const sdk = vi.hoisted(() => ({
         node: HTMLButtonElement;
     }[],
     sources: [] as {
-        shapes: { properties: { route_id: string; label: string } }[];
+        shapes: {
+            properties: {
+                route_id: string;
+                label: string;
+                shipment_label: string;
+            };
+        }[];
     }[],
     layers: [] as unknown[],
     popup: { content: null as HTMLElement | null, position: [] as number[] },
@@ -122,7 +129,23 @@ vi.mock("azure-maps-control", () => ({
             };
         },
     },
-    layer: { LineLayer: class {}, SymbolLayer: class {} },
+    layer: {
+        LineLayer: class {
+            constructor(
+                public source: unknown,
+                _id: unknown,
+                public options: Record<string, unknown>,
+            ) {}
+        },
+        SymbolLayer: class {
+            kind = "label";
+            constructor(
+                public source: unknown,
+                _id: unknown,
+                public options: Record<string, unknown>,
+            ) {}
+        },
+    },
     data: {
         Feature: class {
             geometry: unknown;
@@ -146,6 +169,7 @@ const props = {
     mapsAvailable: false,
     locations: scenario.locations,
     routes: run.routes,
+    allocations: run.allocations,
     selected: run.routes[0].id,
     disabled: false,
     onMove: vi.fn(),
@@ -222,14 +246,155 @@ function emit(name: string, target: unknown = null, value?: unknown): void {
     );
 }
 
-it("offers named lanes, source estimates and mouse/keyboard facility and route inspection in the schematic", () => {
-    render(<MapView {...props} />);
+it("shows every recommended shipment by default and reveals unused options only on request or inspection", () => {
+    const view = render(<MapView {...props} selected={null} />);
     const schematic = screen.getByRole("group", {
         name: /Coordinate schematic/,
     });
-    const routes = within(schematic).getAllByRole("button", {
-        name: /^Select route /,
+    const routes = () =>
+        within(schematic).getAllByRole("button", { name: /^Select route / });
+    expect(routes()).toHaveLength(1);
+    expect(routes()[0]).toHaveAccessibleDescription(
+        expect.stringContaining("Recommended shipment · 50 units"),
+    );
+    expect(within(schematic).getByText("50 units")).toBeVisible();
+    expect(screen.queryByText(/^INSPECTED/)).not.toBeInTheDocument();
+    const toggle = screen.getByRole("checkbox", {
+        name: "Show unused alternatives (1)",
     });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(routes()).toHaveLength(2);
+    expect(
+        within(schematic).getByRole("button", { name: "Select route route-2" }),
+    ).toHaveAccessibleDescription(
+        expect.stringContaining("Unused alternative · no shipments"),
+    );
+    fireEvent.click(toggle);
+    expect(routes()).toHaveLength(1);
+    view.rerender(<MapView {...props} selected="route-2" />);
+    expect(routes()).toHaveLength(2);
+    expect(screen.getByText(/^INSPECTED/)).toHaveTextContent(
+        "Unused alternative · no shipments",
+    );
+    view.rerender(<MapView {...props} selected={null} />);
+    expect(routes()).toHaveLength(1);
+});
+
+it("draws all positive allocations in the plan layer, keeps alternatives and labels separate, and never resets the camera when toggling", async () => {
+    const allocations = [
+        { ...run.allocations[0], quantity: 30 },
+        { ...run.allocations[0], route_id: "route-2", quantity: 20 },
+    ];
+    const unused = { ...run.routes[0], id: "unused" };
+    const zeroQuantity = {
+        ...run.allocations[0],
+        route_id: "unused",
+        quantity: 0,
+    };
+    const view = render(
+        <MapView
+            {...props}
+            mapsAvailable
+            routes={[...run.routes, unused]}
+            allocations={[...allocations, zeroQuantity]}
+            selected={null}
+        />,
+    );
+    await ready();
+    expect(sdk.options?.style).toBe("grayscale_light");
+    const plan = sdk.sources[4];
+    expect(plan.shapes.map((shape) => shape.properties.route_id)).toEqual([
+        "route-1",
+        "route-2",
+    ]);
+    expect(plan.shapes.map((shape) => shape.properties.shipment_label)).toEqual(
+        ["30 units", "20 units"],
+    );
+    expect(sdk.sources[0].shapes).toEqual([]);
+    expect(sdk.sources[1].shapes).toEqual([]);
+    expect(
+        sdk.layers.filter(
+            (layer) => (layer as { kind?: string }).kind === "label",
+        ),
+    ).toEqual([
+        expect.objectContaining({ source: sdk.sources[4] }),
+        expect.objectContaining({ source: sdk.sources[1] }),
+    ]);
+    expect(sdk.layers).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({
+                source: plan,
+                options: { strokeColor: "#ffffff", strokeWidth: 10 },
+            }),
+            expect.objectContaining({
+                source: plan,
+                options: { strokeColor: "#0078d4", strokeWidth: 6 },
+            }),
+            expect.objectContaining({
+                source: sdk.sources[0],
+                options: {
+                    strokeColor: "#5c6873",
+                    strokeWidth: 2,
+                    strokeDashArray: [3, 3],
+                },
+            }),
+        ]),
+    );
+    fireEvent.click(
+        screen.getByRole("checkbox", { name: /Show unused alternatives/ }),
+    );
+    expect(
+        sdk.sources[0].shapes.map((shape) => shape.properties.route_id),
+    ).toEqual(["unused"]);
+    expect(plan.shapes).toHaveLength(2);
+    view.rerender(
+        <MapView
+            {...props}
+            mapsAvailable
+            routes={[...run.routes, unused]}
+            allocations={allocations}
+            selected="unused"
+            target={{ kind: "network", id: null }}
+        />,
+    );
+    expect(sdk.sources[1].shapes[0].properties.route_id).toBe("unused");
+    expect(sdk.sources[2].shapes).toEqual([]);
+    expect(sdk.setCamera).toHaveBeenCalledTimes(1);
+    expect(sdk.construct).toHaveBeenCalledTimes(1);
+});
+
+it("keeps a targeted unused route visible without pretending it carries a shipment", async () => {
+    render(
+        <MapView
+            {...props}
+            mapsAvailable
+            selected={null}
+            target={{ kind: "route", id: "route-2" }}
+        />,
+    );
+    await ready();
+    expect(sdk.sources[0].shapes[0].properties.route_id).toBe("route-2");
+    expect(sdk.sources[2].shapes[0].properties.route_id).toBe("route-2");
+    expect(
+        sdk.sources[4].shapes.map((shape) => shape.properties.route_id),
+    ).toEqual(["route-1"]);
+    expect(sdk.sources[1].shapes).toEqual([]);
+});
+
+it("offers named lanes, source estimates and mouse/keyboard facility and route inspection in the schematic", () => {
+    render(<MapView {...props} />);
+    fireEvent.click(
+        screen.getByRole("checkbox", { name: /Show unused alternatives/ }),
+    );
+    const schematic = screen.getByRole("group", {
+        name: /Coordinate schematic/,
+    });
+    const routes = run.routes.map((route) =>
+        within(schematic).getByRole("button", {
+            name: `Select route ${route.id}`,
+        }),
+    );
     expect(routes[0]).toHaveAccessibleDescription(
         expect.stringContaining(scenario.locations[0].name),
     );
@@ -273,9 +438,11 @@ it("distinguishes preview, inspection and enabled closures/delays without applyi
     const schematic = screen.getByRole("group", {
         name: /Coordinate schematic/,
     });
-    const routes = within(schematic).getAllByRole("button", {
-        name: /^Select route /,
-    });
+    const routes = run.routes.map((route) =>
+        within(schematic).getByRole("button", {
+            name: `Select route ${route.id}`,
+        }),
+    );
     expect(routes[0]).toHaveAccessibleDescription(
         expect.stringContaining("ENABLED · CLOSED"),
     );
@@ -307,7 +474,7 @@ it("distinguishes preview, inspection and enabled closures/delays without applyi
     expect(within(supplier).getByText("TARGET PREVIEW")).toBeInTheDocument();
 });
 
-it("makes global scope explicit and handles a network without routes", () => {
+it("keeps global previews textual rather than recoloring all routes and handles a network without routes", () => {
     const view = render(
         <MapView
             {...props}
@@ -322,7 +489,7 @@ it("makes global scope explicit and handles a network without routes", () => {
         name: /^Select route /,
     });
     lanes.forEach((lane) =>
-        expect(lane).toHaveAccessibleDescription(
+        expect(lane).not.toHaveAccessibleDescription(
             expect.stringContaining("TARGET PREVIEW"),
         ),
     );
@@ -340,7 +507,7 @@ it("makes global scope explicit and handles a network without routes", () => {
         />,
     );
     expect(
-        screen.getByText(/No routes yet. Save and optimize/),
+        screen.getByText(/No routes yet. Save and calculate a shipment plan/),
     ).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
         "Entire network · all 0 routes affected · no routes yet",
@@ -402,8 +569,8 @@ it("keeps the SDK viewport, layers and facility markers stable across inspection
     expect(sdk.sources[1].shapes[0].properties.route_id).toBe(run.routes[1].id);
     expect(sdk.sources[2].shapes[0].properties.route_id).toBe(run.routes[0].id);
     expect(sdk.sources[3].shapes[0].properties.route_id).toBe(run.routes[0].id);
-    expect(sdk.sources[0].shapes[0].properties.label).toContain(
-        "TARGET PREVIEW · ENABLED CLOSED",
+    expect(sdk.sources[4].shapes[0].properties.label).toContain(
+        "Recommended shipment · 50 units",
     );
     const marker = sdk.markers[0];
     expect(marker.getOptions().draggable).toBe(false);
@@ -526,7 +693,7 @@ it("uses Houston defaults, token auth, real traffic and road/satellite controls 
     expect(disconnect).toHaveBeenCalledTimes(1);
     expect(sdk.popupRemove).toHaveBeenCalledTimes(1);
     expect(sdk.removeLayer).toHaveBeenCalledWith(sdk.layers);
-    expect(sdk.removeSource).toHaveBeenCalledTimes(4);
+    expect(sdk.removeSource).toHaveBeenCalledTimes(5);
     expect(sdk.removeMarker).toHaveBeenCalledTimes(2);
     fireEvent.click(marker.node);
     expect(props.onSelectLocation).not.toHaveBeenCalled();

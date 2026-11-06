@@ -16,13 +16,51 @@ test("seed → edit → optimize → close a route → compare persisted results
         .getByRole("button", { name: "Save scenario", exact: true })
         .click();
     await page
-        .getByRole("button", { name: "Optimize network", exact: true })
+        .getByRole("button", { name: "Calculate shipment plan", exact: true })
         .click();
     await expect(page.getByText(/^COMPLETED ·/)).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await expect(
         page.getByRole("group", { name: /Coordinate schematic/ }),
     ).toBeVisible();
+    await expect(page.locator("#shipment-plan-explanation")).toContainText(
+        "without exceeding factory capacities",
+    );
+    const schematic = page.getByRole("group", { name: /Coordinate schematic/ });
+    const recommendedRows = page
+        .getByRole("table")
+        .locator("tr.recommended-row");
+    const recommendedCount = await recommendedRows.count();
+    expect(recommendedCount).toBeGreaterThan(1);
+    await expect(
+        schematic.getByRole("button", { name: /^Select route / }),
+    ).toHaveCount(recommendedCount);
+    await expect(page.getByText(/^INSPECTED/)).toHaveCount(0);
+    const alternatives = page.getByRole("checkbox", {
+        name: /Show unused alternatives/,
+    });
+    await expect(alternatives).not.toBeChecked();
+    await alternatives.check();
+    await expect(
+        schematic.getByRole("button", { name: /^Select route / }),
+    ).toHaveCount(await page.getByRole("table").locator("tbody tr").count());
+    await alternatives.uncheck();
+    const unusedRoute = page
+        .getByRole("table")
+        .locator("tr:not(.recommended-row)")
+        .last();
+    await unusedRoute.getByRole("button").click();
+    await expect(page.getByText(/^INSPECTED/)).toContainText(
+        "Unused alternative · no shipments",
+    );
+    await expect(
+        schematic.getByRole("button", { name: /^Select route / }),
+    ).toHaveCount(recommendedCount + 1);
+    await expect(page.locator(".map-target-status")).toHaveCount(0);
+    await page.screenshot({
+        path: test.info().outputPath("shipment-plan-desktop.png"),
+        fullPage: true,
+    });
     const route = page.getByRole("table").locator("tbody tr").first();
     const routeId = await route.getAttribute("data-route-id");
     expect(routeId).toBeTruthy();
@@ -53,7 +91,7 @@ test("seed → edit → optimize → close a route → compare persisted results
         }),
     ).toBeEnabled();
     await page
-        .getByRole("button", { name: "Optimize network", exact: true })
+        .getByRole("button", { name: "Calculate shipment plan", exact: true })
         .click();
     await expect(page.getByText(/^COMPLETED ·/)).toBeVisible();
     await expect(
@@ -86,7 +124,7 @@ test("seed → edit → optimize → close a route → compare persisted results
         page.getByRole("button", { name: "Remove disruption Loading delay" }),
     ).toBeEnabled();
     await page
-        .getByRole("button", { name: "Optimize network", exact: true })
+        .getByRole("button", { name: "Calculate shipment plan", exact: true })
         .click();
     await expect
         .poll(async () =>

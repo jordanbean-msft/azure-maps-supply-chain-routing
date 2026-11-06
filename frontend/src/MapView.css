@@ -38,6 +38,19 @@
     border-block: 1px solid #e0e0e0;
 }
 
+.map-panel .map-route-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+    padding: 4px 12px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.map-panel .map-route-controls > span {
+    color: #616161;
+}
+
 .map-panel .map-toolbar button {
     border-radius: 0;
 }
@@ -110,21 +123,21 @@
 }
 
 .map-panel .routing-map-marker.supplier {
-    border-color: #0f6cbd;
+    border-color: #00796b;
 }
 
 .map-panel .routing-map-marker.is-inspected {
-    background: #ebf3fc;
-    box-shadow: 0 0 0 2px #0f6cbd;
+    background: #f3effa;
+    box-shadow: 0 0 0 2px #5c2d91;
 }
 
 .map-panel .routing-map-marker.is-preview {
-    outline: 3px dashed #b85c00;
+    outline: 3px dashed #b4009e;
     outline-offset: 3px;
 }
 
 .map-panel .routing-map-marker.is-delayed {
-    border-bottom: 5px solid #b85c00;
+    border-bottom: 5px solid #c42b1c;
 }
 
 .map-panel .routing-map-marker:focus-visible {
@@ -158,8 +171,8 @@
 }
 
 .map-panel .map-target-status.has-target {
-    border-left: 4px solid #b85c00;
-    background: #fff4ce;
+    border-left: 4px solid #b4009e;
+    background: #fdf2fc;
 }
 
 .map-panel .map-applied-status {
@@ -168,7 +181,7 @@
 }
 
 .map-panel .map-route-summary {
-    border-left: 4px solid #0f6cbd;
+    border-left: 4px solid #5c2d91;
 }
 
 .map-panel .map-legend {
@@ -180,12 +193,36 @@
     font-size: 14px;
 }
 
-.map-panel .legend-inspected {
-    color: #0f6cbd;
+.map-panel .map-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.map-panel .legend-preview {
-    color: #8a4500;
+.map-panel .line-swatch {
+    display: inline-block;
+    width: 28px;
+    border-top: 4px solid #0078d4;
+}
+
+.map-panel .line-swatch.inspected {
+    border-color: #5c2d91;
+}
+
+.map-panel .line-swatch.alternative {
+    border-top: 2px dashed #5c6873;
+}
+
+.map-panel .line-swatch.preview {
+    border-top: 4px dashed #b4009e;
+}
+
+.map-panel .line-swatch.closed {
+    border-top: 4px dashed #c42b1c;
+}
+
+.map-panel .legend-supplier {
+    color: #00796b;
 }
 
 .map-panel .legend-closed {

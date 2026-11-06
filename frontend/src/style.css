@@ -78,6 +78,10 @@ select {
     color: var(--muted);
     padding: 0 0 10px;
 }
+.planning-explanation {
+    padding: 0 0 12px;
+    max-width: 1100px;
+}
 .app-shell > .fui-MessageBar {
     margin-bottom: 8px;
 }
@@ -253,8 +257,8 @@ summary {
     overflow-wrap: anywhere;
 }
 .target-preview.has-target {
-    border-color: #d83b01;
-    background: #fff9f5;
+    border-color: #b4009e;
+    background: #fdf2fc;
 }
 .target-preview p {
     margin-top: 6px;
@@ -315,8 +319,12 @@ summary {
     font-weight: 600;
 }
 .results-panel > .muted,
+.results-panel > .plan-outcome,
 .results-panel > .footnote {
     padding: 0 12px;
+}
+.plan-outcome {
+    margin: 10px 0;
 }
 .table-scroll {
     overflow: auto;
@@ -343,11 +351,17 @@ thead th {
     top: 0;
     z-index: 1;
 }
+.recommended-row th {
+    border-left: 3px solid #0078d4;
+}
 .selected-row {
+    background: #f3effa;
+}
+.recommended-row:not(.selected-row) {
     background: #ebf3fc;
 }
 .selected-row th {
-    border-left: 3px solid #0f6cbd;
+    border-left: 3px solid #5c2d91;
 }
 .results-panel .route-button {
     display: block;

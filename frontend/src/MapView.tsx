@@ -4,13 +4,20 @@ import * as atlas from "azure-maps-control";
 import "azure-maps-control/dist/atlas.min.css";
 import { errorMessage, request } from "./api";
 import type { MapTarget } from "./mapTarget";
-import type { Disruption, Location, MapsToken, RouteCandidate } from "./types";
+import type {
+    Allocation,
+    Disruption,
+    Location,
+    MapsToken,
+    RouteCandidate,
+} from "./types";
 import "./MapView.css";
 
 interface Props {
     mapsAvailable: boolean;
     locations: Location[];
     routes: RouteCandidate[];
+    allocations: Allocation[];
     selected: string | null;
     disabled: boolean;
     onSelect: (id: string) => void;
@@ -21,8 +28,15 @@ interface Props {
     disruptions?: Disruption[];
 }
 
-const BLUE = "#0f6cbd";
-const ORANGE = "#b85c00";
+interface DisplayProps extends Props {
+    showAlternatives: boolean;
+}
+
+const BLUE = "#0078d4";
+const PURPLE = "#5c2d91";
+const PREVIEW = "#b4009e";
+const SLATE = "#5c6873";
+const TEAL = "#00796b";
 const RED = "#c42b1c";
 
 function laneName(route: RouteCandidate, locations: Location[]): string {
@@ -47,9 +61,30 @@ function routePreview(
     route: RouteCandidate,
     target?: MapTarget | null,
 ): boolean {
-    return (
-        target?.kind === "network" ||
-        (target?.kind === "route" && target.id === route.id)
+    return target?.kind === "route" && target.id === route.id;
+}
+
+function shipmentQuantity(route: RouteCandidate, props: Props): number {
+    return props.allocations
+        .filter((item) => item.route_id === route.id && item.quantity > 0)
+        .reduce((sum, item) => sum + item.quantity, 0);
+}
+
+function shipmentLabel(route: RouteCandidate, props: Props): string {
+    const quantity = shipmentQuantity(route, props);
+    return quantity > 0
+        ? `Recommended shipment · ${quantity.toLocaleString()} units`
+        : "Unused alternative · no shipments";
+}
+
+function visibleRoutes(props: DisplayProps): RouteCandidate[] {
+    return props.routes.filter(
+        (route) =>
+            props.showAlternatives ||
+            shipmentQuantity(route, props) > 0 ||
+            route.id === props.selected ||
+            routePreview(route, props.target) ||
+            closed(route, props.disruptions),
     );
 }
 
@@ -103,7 +138,7 @@ function popupContent(title: string, detail: string): HTMLElement {
     return content;
 }
 
-function Schematic(props: Props) {
+function Schematic(props: DisplayProps) {
     const { locations, routes, selected, onSelect, onSelectLocation, target } =
         props;
     const points = [
@@ -157,71 +192,98 @@ function Schematic(props: Props) {
                     </text>
                 </g>
             )}
-            {routes.map((route) => {
-                const preview = routePreview(route, target);
-                const closure = closed(route, props.disruptions);
-                const label = routeLabel(route, locations);
-                const midpoint =
-                    route.geometry[Math.floor(route.geometry.length / 2)];
-                const [x, y] = midpoint ? project(midpoint) : [400, 200];
-                const polyline = route.geometry
-                    .map((point) => project(point).join(","))
-                    .join(" ");
-                return (
-                    <g
-                        key={route.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Select route ${route.id}`}
-                        aria-description={`${label}${preview ? " · TARGET PREVIEW" : ""}${closure ? " · ENABLED · CLOSED" : ""}`}
-                        aria-pressed={selected === route.id}
-                        onClick={() => onSelect(route.id)}
-                        onKeyDown={(event) =>
-                            activate(event, () => onSelect(route.id))
-                        }
-                    >
-                        <title>{label}</title>
-                        {preview && (
-                            <polyline
-                                points={polyline}
-                                fill="none"
-                                stroke={ORANGE}
-                                strokeWidth={13}
-                                strokeDasharray="9 5"
-                            />
-                        )}
-                        {closure && (
-                            <polyline
-                                points={polyline}
-                                fill="none"
-                                stroke={RED}
-                                strokeWidth={9}
-                            />
-                        )}
-                        <polyline
-                            points={polyline}
-                            fill="none"
-                            stroke={selected === route.id ? BLUE : "#707070"}
-                            strokeWidth={selected === route.id ? 5 : 2}
-                            strokeDasharray={
-                                selected === route.id ? undefined : "6 4"
-                            }
-                        />
-                        <text
-                            x={x}
-                            y={y - 36}
-                            textAnchor="middle"
-                            className="lane-label"
-                            visibility={
-                                selected === route.id ? undefined : "hidden"
+            {visibleRoutes(props)
+                .sort(
+                    (a, b) =>
+                        Number(a.id === selected) - Number(b.id === selected) ||
+                        Number(shipmentQuantity(a, props) > 0) -
+                            Number(shipmentQuantity(b, props) > 0),
+                )
+                .map((route) => {
+                    const preview = routePreview(route, target);
+                    const closure = closed(route, props.disruptions);
+                    const quantity = shipmentQuantity(route, props);
+                    const inspected = selected === route.id;
+                    const label = `${shipmentLabel(route, props)} · ${routeLabel(route, locations)}`;
+                    const midpoint =
+                        route.geometry[Math.floor(route.geometry.length / 2)];
+                    const [x, y] = midpoint ? project(midpoint) : [400, 200];
+                    const polyline = route.geometry
+                        .map((point) => project(point).join(","))
+                        .join(" ");
+                    return (
+                        <g
+                            key={route.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Select route ${route.id}`}
+                            aria-description={`${label}${preview ? " · TARGET PREVIEW" : ""}${closure ? " · ENABLED · CLOSED" : ""}`}
+                            aria-pressed={selected === route.id}
+                            onClick={() => onSelect(route.id)}
+                            onKeyDown={(event) =>
+                                activate(event, () => onSelect(route.id))
                             }
                         >
-                            {route.distance_km.toFixed(1)} km ·{" "}
-                            {estimatedMinutes(route)} min
-                        </text>
-                    </g>
-                );
-            })}
+                            <title>{label}</title>
+                            <polyline
+                                points={polyline}
+                                fill="none"
+                                stroke="#ffffff"
+                                strokeWidth={preview ? 16 : inspected ? 11 : 9}
+                            />
+                            {preview && (
+                                <polyline
+                                    points={polyline}
+                                    fill="none"
+                                    stroke={PREVIEW}
+                                    strokeWidth={13}
+                                    strokeDasharray="9 5"
+                                />
+                            )}
+                            {closure && (
+                                <polyline
+                                    points={polyline}
+                                    fill="none"
+                                    stroke={RED}
+                                    strokeWidth={7}
+                                    strokeDasharray="4 4"
+                                />
+                            )}
+                            <polyline
+                                points={polyline}
+                                fill="none"
+                                stroke={
+                                    inspected
+                                        ? PURPLE
+                                        : quantity > 0
+                                          ? BLUE
+                                          : SLATE
+                                }
+                                strokeWidth={inspected || quantity > 0 ? 5 : 2}
+                                strokeDasharray={
+                                    inspected || quantity > 0
+                                        ? undefined
+                                        : "6 4"
+                                }
+                            />
+                            <text
+                                x={x}
+                                y={y - 36}
+                                textAnchor="middle"
+                                className="lane-label"
+                                visibility={
+                                    inspected || quantity > 0
+                                        ? undefined
+                                        : "hidden"
+                                }
+                            >
+                                {quantity > 0
+                                    ? `${quantity.toLocaleString()} units`
+                                    : "No shipments"}
+                            </text>
+                        </g>
+                    );
+                })}
             {locations.map((location) => {
                 const [x, y] = project([location.longitude, location.latitude]);
                 const preview =
@@ -253,13 +315,13 @@ function Schematic(props: Props) {
                                 cy={y}
                                 r={17}
                                 fill="none"
-                                stroke={preview ? ORANGE : BLUE}
+                                stroke={preview ? PREVIEW : PURPLE}
                                 strokeWidth={3}
                                 strokeDasharray={preview ? "4 3" : undefined}
                             />
                         )}
                         {location.kind === "supplier" ? (
-                            <circle cx={x} cy={y} r={9} fill={BLUE} />
+                            <circle cx={x} cy={y} r={9} fill={TEAL} />
                         ) : (
                             <rect
                                 x={x - 9}
@@ -339,7 +401,9 @@ function networkPositions(props: Props): number[][] {
     ];
 }
 
-function AzureMap(props: Props & { onError: (message: string) => void }) {
+function AzureMap(
+    props: DisplayProps & { onError: (message: string) => void },
+) {
     const container = useRef<HTMLDivElement>(null);
     const mapRef = useRef<atlas.Map | null>(null);
     const resources = useRef<MapResources | null>(null);
@@ -388,7 +452,7 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
                 position: event.position,
                 content: popupContent(
                     laneName(route, latest.current.locations),
-                    `${routeLabel(route, latest.current.locations)}${closed(route, latest.current.disruptions) ? " · ENABLED · CLOSED (simulation)" : ""}`,
+                    `${shipmentLabel(route, latest.current)} · ${routeLabel(route, latest.current.locations)}${closed(route, latest.current.disruptions) ? " · ENABLED · CLOSED (simulation)" : ""} · Inspection does not change the shipment plan.`,
                 ),
             });
             resources.current.popup.open(map);
@@ -397,37 +461,75 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
             if (controller.signal.aborted || !map || resources.current) return;
             window.clearTimeout(readyTimeout);
             const sources = Array.from(
-                { length: 4 },
+                { length: 5 },
                 () => new atlas.source.DataSource(),
             );
             map.sources.add(sources);
             const layers = [
                 new atlas.layer.LineLayer(sources[0], undefined, {
-                    strokeColor: "#707070",
-                    strokeWidth: 3,
+                    strokeColor: "#ffffff",
+                    strokeWidth: 6,
                 }),
-                new atlas.layer.LineLayer(sources[2], undefined, {
-                    strokeColor: ORANGE,
-                    strokeWidth: 13,
-                    strokeDashArray: [3, 2],
+                new atlas.layer.LineLayer(sources[0], undefined, {
+                    strokeColor: SLATE,
+                    strokeWidth: 2,
+                    strokeDashArray: [3, 3],
+                }),
+                new atlas.layer.LineLayer(sources[4], undefined, {
+                    strokeColor: "#ffffff",
+                    strokeWidth: 10,
+                }),
+                new atlas.layer.LineLayer(sources[4], undefined, {
+                    strokeColor: BLUE,
+                    strokeWidth: 6,
+                }),
+                new atlas.layer.LineLayer(sources[3], undefined, {
+                    strokeColor: "#ffffff",
+                    strokeWidth: 12,
                 }),
                 new atlas.layer.LineLayer(sources[3], undefined, {
                     strokeColor: RED,
-                    strokeWidth: 9,
+                    strokeWidth: 7,
+                    strokeDashArray: [1, 1],
+                }),
+                new atlas.layer.LineLayer(sources[2], undefined, {
+                    strokeColor: "#ffffff",
+                    strokeWidth: 16,
+                }),
+                new atlas.layer.LineLayer(sources[2], undefined, {
+                    strokeColor: PREVIEW,
+                    strokeWidth: 13,
+                    strokeDashArray: [3, 2],
                 }),
                 new atlas.layer.LineLayer(sources[1], undefined, {
-                    strokeColor: BLUE,
-                    strokeWidth: 5,
+                    strokeColor: "#ffffff",
+                    strokeWidth: 10,
                 }),
-                new atlas.layer.SymbolLayer(sources[0], undefined, {
+                new atlas.layer.LineLayer(sources[1], undefined, {
+                    strokeColor: PURPLE,
+                    strokeWidth: 6,
+                }),
+                new atlas.layer.SymbolLayer(sources[4], undefined, {
                     placement: "line-center",
                     iconOptions: { image: "none" },
                     textOptions: {
-                        textField: ["get", "label"],
-                        size: 12,
-                        color: "#242424",
+                        textField: ["get", "shipment_label"],
+                        size: 14,
+                        color: "#004578",
                         haloColor: "#ffffff",
-                        haloWidth: 2,
+                        haloWidth: 3,
+                        offset: [0, -1.2],
+                    },
+                }),
+                new atlas.layer.SymbolLayer(sources[1], undefined, {
+                    placement: "line-center",
+                    iconOptions: { image: "none" },
+                    textOptions: {
+                        textField: ["get", "shipment_label"],
+                        size: 14,
+                        color: PURPLE,
+                        haloColor: "#ffffff",
+                        haloWidth: 3,
                         offset: [0, -1.5],
                     },
                 }),
@@ -455,6 +557,7 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
             map = new atlas.Map(container.current, {
                 center: [-95.3698, 29.7604],
                 zoom: 9,
+                style: "grayscale_light",
                 language: "en-US",
                 authOptions: {
                     authType: atlas.AuthenticationType.anonymous,
@@ -487,7 +590,11 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
                     new atlas.control.ZoomControl(),
                     new atlas.control.CompassControl(),
                     new atlas.control.StyleControl({
-                        mapStyles: ["road", "satellite_road_labels"],
+                        mapStyles: [
+                            "grayscale_light",
+                            "road",
+                            "satellite_road_labels",
+                        ],
                     }),
                 ],
                 { position: atlas.ControlPosition.TopRight },
@@ -539,10 +646,13 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
         const current = resources.current;
         if (!ready || !map || !current) return;
         const groups = [
-            props.routes,
+            visibleRoutes(props).filter(
+                (route) => shipmentQuantity(route, props) === 0,
+            ),
             props.routes.filter((route) => route.id === props.selected),
             props.routes.filter((route) => routePreview(route, props.target)),
             props.routes.filter((route) => closed(route, props.disruptions)),
+            props.routes.filter((route) => shipmentQuantity(route, props) > 0),
         ];
         groups.forEach((routes, index) => {
             current.sources[index].setShapes(
@@ -552,7 +662,13 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
                             new atlas.data.LineString(route.geometry),
                             {
                                 route_id: route.id,
-                                label: `${laneName(route, props.locations)} · ${route.distance_km.toFixed(1)} km · ${estimatedMinutes(route)} min${routePreview(route, props.target) ? " · TARGET PREVIEW" : ""}${closed(route, props.disruptions) ? " · ENABLED CLOSED" : ""}`,
+                                label: `${shipmentLabel(route, props)} · ${route.distance_km.toFixed(1)} km · ${estimatedMinutes(route)} min`,
+                                shipment_label:
+                                    route.id === props.selected && index !== 1
+                                        ? ""
+                                        : shipmentQuantity(route, props) > 0
+                                          ? `${shipmentQuantity(route, props).toLocaleString()} units`
+                                          : "No shipments",
                             },
                         ),
                 ),
@@ -700,7 +816,7 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
                     checked={traffic}
                     onChange={(_, data) => setTraffic(data.checked === true)}
                 />
-                <span>Road / satellite in map style control</span>
+                <span>Light / road / satellite in map style control</span>
             </div>
             <div
                 ref={container}
@@ -713,7 +829,13 @@ function AzureMap(props: Props & { onError: (message: string) => void }) {
 
 export default function MapView(props: Props) {
     const [failure, setFailure] = useState<string | null>(null);
+    const [showAlternatives, setShowAlternatives] = useState(false);
+    const display = { ...props, showAlternatives };
     const live = props.mapsAvailable && !failure;
+    const recommended = props.routes.filter(
+        (route) => shipmentQuantity(route, props) > 0,
+    );
+    const alternativeCount = props.routes.length - recommended.length;
     const enabledGlobal =
         props.disruptions?.filter(
             (item) =>
@@ -726,7 +848,7 @@ export default function MapView(props: Props) {
     return (
         <section className="map-panel" aria-labelledby="map-title">
             <header className="map-heading">
-                <h2 id="map-title">Network map</h2>
+                <h2 id="map-title">Shipment plan map</h2>
                 <span>{live ? "Azure Maps" : "Coordinate schematic"}</span>
             </header>
             {failure && (
@@ -734,16 +856,31 @@ export default function MapView(props: Props) {
                     {failure}
                 </p>
             )}
-            <div
-                className={`map-target-status${props.target ? " has-target" : ""}`}
-                role="status"
-            >
-                {props.target ? "TARGET PREVIEW · " : ""}
-                {targetLabel(props)}
+            <div className="map-route-controls">
+                <Checkbox
+                    label={`Show unused alternatives (${alternativeCount})`}
+                    checked={showAlternatives}
+                    onChange={(_, data) =>
+                        setShowAlternatives(data.checked === true)
+                    }
+                />
+                <span>
+                    {recommended.length} recommended{" "}
+                    {recommended.length === 1 ? "route" : "routes"} · Blue lines
+                    carry shipments; labels show units.
+                </span>
             </div>
+            {props.target && (
+                <div className="map-target-status has-target" role="status">
+                    TARGET PREVIEW · {targetLabel(props)}
+                    {props.target.kind === "network" &&
+                        " · Route colors still show the shipment plan."}
+                </div>
+            )}
             {!props.routes.length && (
                 <p className="map-notice">
-                    No routes yet. Save and optimize to show named lanes.
+                    No routes yet. Save and calculate a shipment plan to see
+                    recommended routes.
                 </p>
             )}
             {enabledGlobal.length > 0 && (
@@ -755,27 +892,43 @@ export default function MapView(props: Props) {
                 </p>
             )}
             {live ? (
-                <AzureMap {...props} onError={setFailure} />
+                <AzureMap {...display} onError={setFailure} />
             ) : (
-                <Schematic {...props} />
+                <Schematic {...display} />
             )}
             <div className="map-legend" aria-label="Map legend">
-                <span>● Supplier</span>
+                <span className="legend-supplier">● Supplier</span>
                 <span>■ Factory</span>
-                <span className="legend-inspected">━ Inspected route</span>
-                <span>┄ Alternative lane</span>
-                <span className="legend-preview">┄ Target preview</span>
+                <span>
+                    <i className="line-swatch recommended" aria-hidden="true" />
+                    Recommended shipment
+                </span>
+                <span>
+                    <i className="line-swatch inspected" aria-hidden="true" />
+                    Inspecting only
+                </span>
+                <span>
+                    <i className="line-swatch alternative" aria-hidden="true" />
+                    Unused alternative
+                </span>
+                <span>
+                    <i className="line-swatch preview" aria-hidden="true" />
+                    Disruption target
+                </span>
                 <span className="legend-closed">
-                    ━ Enabled simulated closure
+                    <i className="line-swatch closed" aria-hidden="true" />
+                    Simulated closure
                 </span>
                 <span>DELAYED · Enabled facility delay</span>
             </div>
             {selectedRoute && (
                 <p className="map-route-summary">
-                    INSPECTED · {routeLabel(selectedRoute, props.locations)}
+                    INSPECTED · {shipmentLabel(selectedRoute, props)} ·{" "}
+                    {routeLabel(selectedRoute, props.locations)}
                     {closed(selectedRoute, props.disruptions)
                         ? " · ENABLED · CLOSED (simulation)"
                         : ""}
+                    {" · "}Inspecting does not change the plan.
                 </p>
             )}
             <p className="map-caption">
@@ -783,7 +936,9 @@ export default function MapView(props: Props) {
                     ? props.disabled
                         ? "Coordinate editing is locked. Select facilities or lanes to inspect."
                         : "Select facilities or lanes to inspect. Drag markers to edit coordinates, then save and optimize."
-                    : `Full network shown. Select facilities or lanes with mouse, Enter or Space. ${props.disabled ? "Coordinate editing is locked." : "Edit coordinates in the location editor."}`}{" "}
+                    : `Select visible facilities or routes with mouse, Enter or Space. ${props.disabled ? "Coordinate editing is locked." : "Edit coordinates in the location editor."}`}{" "}
+                Unused alternatives are hidden unless requested, inspected or
+                targeted. Purple means inspection, not a new recommendation.
                 Lines show the last successful run; facilities show editor
                 coordinates. Disruptions are simulations, not live road
                 closures. ETA includes traffic, estimated weather and simulated

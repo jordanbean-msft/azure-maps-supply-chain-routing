@@ -1,6 +1,138 @@
-# Fluent map workspace deployment
+# Shipment-plan clarity deployment
 
 Status: Deployed
+
+## Current scope
+
+Modify the existing `demo` environment in East US 2, subscription
+`0ec6c427-01d3-4462-ae56-fd9656157157`, application group `rg-scroute-eus2`.
+Reuse Terraform with azd orchestration and secure ACR remote builds.
+Autopilot continues the existing demo update; no new services, capacity,
+regions, permissions, registration, infrastructure source or dependencies.
+
+Deploy web only: explain the unchanged minimum-cost supplier-to-factory
+allocation, rename the action Calculate shipment plan, show all recommended
+shipments in blue with quantities, optional dashed slate alternatives, purple
+inspection and magenta local disruption previews. Use a light grayscale basemap
+and white route casings. Do not recolor every route for network-wide previews,
+and show disruption targets only in the Disruptions tab.
+
+Preserve the deployed API/refresh images, Cosmos data, authentication boundary,
+single-tenant registration, Maps render/traffic role, all existing managed
+identities and `SecurityControl=Ignore` tags. Route inspection must not submit
+an optimization request or change persisted allocations.
+
+## Current preparation checklist
+
+- [x] Inspect actual optimizer, UI/map, deployment settings and existing tests.
+- [x] Implement the frontend-only clarification without dependency changes.
+- [x] Frontend lint/format/types, 64 tests and production build pass.
+- [x] Complete desktop/mobile Chromium scenario and visual verification.
+- [x] Run azure-validate workflow and record current proof.
+- [x] Reconcile existing infrastructure as required by the deployment checklist,
+  after a non-destructive preview; verify propagated AcrPull.
+- [x] Deploy web only and verify ready revision, exact frontend assets and
+  public readiness/auth boundaries. No actual user sign-in is claimed.
+
+## Functional verification
+
+Verified locally against the real unchanged FastAPI demo backend. All 64 React
+tests, frontend lint/format/types/build and two real Chromium workflows pass.
+Browser checks cover positive allocation visibility, default-hidden alternatives,
+optional inspection without changing the plan, closure and +25-minute facility
+delay recalculations, persistence and desktop/mobile overflow. Screenshot review
+removed long inspection labels; compact quantities and color/line legend are
+verified. SDK unit tests verify source separation, blue/white recommendation
+layers, dashed slate alternatives, stable viewport and textual global previews.
+No new operation or entrypoint requires a VS Code task change.
+
+Existing Azure context was rechecked: selected azd `demo`, subscription and
+tenant unchanged, East US 2, `rg-scroute-eus2`. Zero additional resources or
+capacity requested; no regional quota increase is needed.
+
+## 7. Validation Proof
+
+Current evidence recorded: 2026-11-06T17:18:27-06:00.
+
+The current azure-validate workflow ran the AZD recipe against the existing
+Terraform-backed `demo` environment. `azd version`, selected environment/context,
+`azd auth login --check-status` and official azure.yaml schema validation pass.
+`azd provision --preview --no-prompt` succeeds: zero additions, eight in-place
+diagnostic-destination drift reconciliations, zero destruction; no app image,
+network, identity, registration, role or scope changes. Preview output is saved
+in the session's `files/shipment-provision-preview.log`.
+
+The complete `validate-terraform.sh infra` preflight passes all ten checks using
+azd-generated `demo.conf.json` backend configuration and `main.tfvars.json`.
+This includes authenticated remote-state access, format/validate, real plan,
+state list, JSON syntax and unresolved-template scan. No warnings/errors.
+The temporary `infra/tfplan` was removed.
+
+Frontend ESLint, Prettier, 64 React tests, TypeScript and production build pass.
+Two real Chromium workflows pass, using the unchanged FastAPI backend in
+deterministic local mode. Desktop/mobile screenshots inspected; quantity-only
+labels avoid inspection clutter. Dockerfiles retain non-root users and correct
+build contexts/lockfiles. `azd package --all --no-prompt` succeeds with secure
+remote ACR builds selected. The existing Maps SDK bundle-size advisory remains.
+
+Static roles remain unchanged and sufficient: resource-scoped AcrPull for
+API/web/refresh, AcrPush for the deployer, Maps Data Reader and container-scoped
+native Cosmos Data Contributor for API/refresh, and render/traffic reads only
+for the separate browser identity. All 14 application ARM resources retain
+the user-authorized exception tag; existing policy assignments were retrieved.
+No new policy exception, management privilege, public ingress or service
+permission is requested. Real personal delegated cloud acceptance remains
+outside the deterministic browser fixture coverage.
+
+## All validation checks pass
+
+- [x] AZD installation, selected environment, authentication, subscription/location.
+- [x] Official azure.yaml schema validation.
+- [x] Aspire pre/post-provisioning checks not applicable.
+- [x] Non-destructive real provision preview.
+- [x] Frontend build and functional verification.
+- [x] Docker contexts, non-root users and checked-in package/uv lockfiles.
+- [x] Secure remote-build mode package validation.
+- [x] Terraform complete preflight including authenticated state and real plan.
+- [x] Existing policy/tag preservation and static data-plane role verification.
+
+## Shipment-plan rollout result
+
+Verified: 2026-11-06T17:25:17-06:00.
+
+Web update deployed:
+https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+
+`azd provision --no-prompt` completed with zero additions, eight in-place
+diagnostic reconciliations and zero destruction. All three registry-scoped
+AcrPull assignments were confirmed before `azd deploy web --no-prompt`.
+The secure ACR remote build and web deployment succeeded.
+
+Latest web revision `ca-njk0ztnkmgrmn-web--azd-1794007393` equals latest ready,
+is healthy and running. Image:
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/web-demo:azd-deploy-1794007265`.
+API revision remains `ca-njk0ztnkmgrmn-api--azd-1794006389`, latest equals ready;
+API/refresh still share the unchanged `api-demo:azd-deploy-1794006304` image.
+`azd show` confirms the expected endpoints.
+
+Deployed JS (`index-Ch6_iv7H.js`) and CSS (`index-D0OQ3mso.css`) match the
+validated local build byte-for-byte. The standalone auth smoke passes:
+readiness/discovery available and anonymous, invalid and spoofed credentials
+rejected. Initial HTTP checks timed out immediately after deployment; settled
+standalone retries passed without configuration changes.
+
+Live role verification confirms unchanged Maps-account-scoped Data Reader for
+API/refresh, browser render/traffic reads only (no management actions), and
+native Cosmos Data Contributor for API/refresh at the scenario-container scope.
+No persisted scenario or permission was modified by the UI change.
+
+Local Chromium covers actual scenario operations and mocked profile behavior;
+SDK source/style behavior has focused unit coverage. No completed interactive
+user cloud login or authenticated live-map visual session is claimed.
+
+## Previous Fluent map workspace deployment (historical)
+
+Previous status: Deployed
 
 ## Current change and deployment context
 
@@ -49,7 +181,7 @@ sizing and schematic-label fixes; no horizontal page/sidebar overflow remains.
   - [x] Traffic follow-up: 11 mocked plans and real preview/preflight pass;
     existing role updated in place, no additions, replacements or deletions.
 
-## 7. Validation Proof
+## Previous Fluent validation proof (historical)
 
 Evidence recorded: 2026-11-06T16:45:16-06:00. The azure-validate workflow completed.
 
