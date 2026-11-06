@@ -4,76 +4,69 @@ on:
   workflow_dispatch:
     inputs:
       azd_env_name:
-        description: "azd environment name"
+        description: Target azd environment
         required: true
-        default: "prod"
+        default: demo
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-${{ inputs.azd_env_name }}
+  cancel-in-progress: false
 
 jobs:
   provision:
-    name: Provision Infrastructure
+    name: Provision reviewed infrastructure
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
+    environment: ${{ inputs.azd_env_name }}
+    env:
+      AZURE_ENV_NAME: ${{ inputs.azd_env_name }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_PRINCIPAL_ID: ${{ vars.AZURE_PRINCIPAL_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      RS_RESOURCE_GROUP: ${{ vars.RS_RESOURCE_GROUP }}
+      RS_STORAGE_ACCOUNT: ${{ vars.RS_STORAGE_ACCOUNT }}
+      RS_CONTAINER_NAME: ${{ vars.RS_CONTAINER_NAME }}
+      AZD_TERRAFORM_ENV: ${{ vars.AZD_TERRAFORM_ENV }}
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Validate secrets
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/setup-azd@v2
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+      - name: Authenticate azd with GitHub OIDC
         run: |
-          for secret in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID; do
-            if [ -z "${!secret}" ]; then
-              echo "::error::Required secret $secret is not set"
-              exit 1
-            fi
-          done
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-
-      - name: Install azd
-        uses: Azure/setup-azd@v2
-
-      - name: Login to Azure
+          azd auth login --client-id "$AZURE_CLIENT_ID" \
+            --tenant-id "$AZURE_TENANT_ID" \
+            --federated-credential-provider github
+      - name: Configure explicit deployment inputs
         run: |
-          azd auth login \
-            --client-id "$AZURE_CLIENT_ID" \
-            --client-secret "$AZURE_CLIENT_SECRET" \
-            --tenant-id "$AZURE_TENANT_ID"
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-
-      - name: Create azd environment
-        run: |
-          azd env new ${{ inputs.azd_env_name }} || true
-          azd env select ${{ inputs.azd_env_name }}
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set environment variables
-        run: |
-          azd env set AZURE_LOCATION "${{ vars.AZURE_LOCATION || 'eastus2' }}"
-          azd env set AZURE_RESOURCE_GROUP "${{ vars.AZURE_RESOURCE_GROUP }}"
-          azd env set AZURE_PRINCIPAL_ID "${{ vars.AZURE_PRINCIPAL_ID }}"
-          azd env set RS_RESOURCE_GROUP "${{ vars.RS_RESOURCE_GROUP }}"
-          azd env set RS_STORAGE_ACCOUNT "${{ vars.RS_STORAGE_ACCOUNT }}"
-          azd env set RS_CONTAINER_NAME "${{ vars.RS_CONTAINER_NAME }}"
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
+          azd env new "$AZURE_ENV_NAME" --no-prompt
+          azd env set AZURE_RESOURCE_GROUP "$AZURE_RESOURCE_GROUP"
+          azd env set AZURE_LOCATION "$AZURE_LOCATION"
+          azd env set AZURE_PRINCIPAL_ID "$AZURE_PRINCIPAL_ID"
+          azd env set RS_RESOURCE_GROUP "$RS_RESOURCE_GROUP"
+          azd env set RS_STORAGE_ACCOUNT "$RS_STORAGE_ACCOUNT"
+          azd env set RS_CONTAINER_NAME "$RS_CONTAINER_NAME"
+          if [ -n "$AZD_TERRAFORM_ENV" ]; then
+            while IFS= read -r item; do
+              azd env set "$(jq -r '.key' <<< "$item")" "$(jq -r '.value' <<< "$item")"
+            done < <(jq -ce 'to_entries[] | select(.value | type == "string")' <<< "$AZD_TERRAFORM_ENV")
+          fi
       - name: Provision infrastructure
-        run: azd provision --environment ${{ inputs.azd_env_name }} --no-prompt
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_AZUREAD: "true"
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: azd provision --no-prompt

@@ -11,34 +11,104 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-jobs:
-  lint-and-test:
-    name: Lint and Test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+permissions:
+  contents: read
 
+jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version-file: .python-version
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.0.0
+      - uses: astral-sh/setup-uv@v8.0.0
         with:
           enable-cache: true
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src/
+      - run: uv run pytest -W error --cov --cov-report=xml --cov-report=term-missing
+      - run: uv build
 
-      - name: Install dependencies
-        run: uv sync --extra dev
+  frontend:
+    name: React
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
 
-      - name: Lint (ruff)
-        run: uv run ruff check .
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+      - run: terraform -chdir=infra fmt -check -recursive
+      - run: terraform -chdir=infra init -backend=false -input=false
+      - name: Validate without errors or warnings
+        run: |
+          terraform -chdir=infra validate -json > "$RUNNER_TEMP/terraform-validation.json"
+          jq -e '.valid and .error_count == 0 and .warning_count == 0' \
+            "$RUNNER_TEMP/terraform-validation.json"
 
-      - name: Run tests
-        run: uv run pytest -W error
+  containers:
+    name: Container builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: supply-chain-api:ci
+      - uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          tags: supply-chain-web:ci
 
-      - name: Coverage report
-        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing
+  browser:
+    name: Browser integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --frozen --extra dev
+      - run: npm --prefix frontend ci
+      - run: npx --prefix frontend playwright install --with-deps chromium
+      - run: npm --prefix frontend run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: frontend/test-results/
+          retention-days: 7
