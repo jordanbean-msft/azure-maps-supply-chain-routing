@@ -7,6 +7,7 @@ optimization, persistence, and live-update orchestration.
 
 ```mermaid
 flowchart LR
+    Browser <-->|MSAL / PKCE| Entra["Microsoft Entra ID"]
     Browser["React + Azure Maps Web SDK"] -->|HTTPS| Web["Container App: web / Nginx"]
     Web -->|internal HTTPS /api| API["Container App: FastAPI"]
     Browser -->|short-lived authorization| Tiles["Azure Maps map tiles"]
@@ -22,6 +23,10 @@ flowchart LR
 
 The public web container proxies API calls and server-sent events (SSE) to the
 internal API. A single browser origin avoids cross-origin credential handling.
+The static shell is public, but React gates the workspace behind MSAL sign-in.
+Every data request and SSE stream carries an Entra bearer token. FastAPI checks
+tenant signing keys, issuer, audience, expiry and delegated scope; UI gating alone
+is not an authorization boundary. Health and nonsecret auth discovery stay public.
 The map uses Microsoft's Azure Maps Web SDK directly; no unofficial React map
 wrapper is required. The server brokers short-lived Maps authorization rather
 than publishing an account key.
@@ -109,12 +114,13 @@ is unknown: the service can use historical/predicted traffic instead.
 The Cosmos container is partitioned by `/scenario_id`. Scenario, run, event,
 and route documents are colocated by scenario. Use partition-scoped point
 reads and ETag conditional updates; stale edits return `412` rather than
-overwriting another edit. TTL bounds anonymous demo retention.
+overwriting another edit. TTL bounds demo retention.
 
 There is deliberately no shared mutable "current scenario". Each seed action
-creates a new scenario identifier. Public demo IDs are not an enterprise
-authorization boundary: use synthetic data only, and add authentication and
-per-user authorization before accepting real supply-chain information.
+creates a new scenario identifier. Authentication limits API access to signed-in
+users in the configured tenant. Users share the demo dataset: knowing a scenario
+ID permits any authenticated user to access it. Per-user resource authorization
+and business-data retention controls remain prerequisites for real information.
 
 ## Live updates and cost controls
 

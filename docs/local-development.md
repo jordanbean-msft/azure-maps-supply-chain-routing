@@ -30,7 +30,10 @@ road basemap; the UI labels this explicitly.
 `APP_MODE=live` requires Azure Maps/Cosmos resources and identity configuration;
 see [deployment](deployment.md) and [configuration](configuration-reference.md).
 It never silently falls back to simulation. Use only synthetic inputs in the
-public demo; identifiers are not a user-authorization system.
+demo; identifiers are not a per-user authorization system. User authentication
+is independently configured: `AUTH_ENABLED=false` in the local example,
+`true` in Terraform deployments. See [Entra authentication](authentication.md)
+to exercise sign-in against simulated local routing.
 
 ## Validation
 
@@ -68,6 +71,9 @@ bash scripts/smoke-api.sh http://localhost:8000
 ```
 
 It also accepts a deployed web origin; live mode incurs billable Maps calls.
+Authenticated deployments require `SMOKE_ACCESS_TOKEN_FILE` pointing to a
+private file containing a valid delegated API token. CI instead uses
+`scripts/smoke-auth.sh` to verify the anonymous-access boundary without a user.
 
 ## Demo walkthrough
 

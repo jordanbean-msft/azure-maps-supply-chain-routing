@@ -13,6 +13,10 @@ Terraform. Never commit a populated `.env` or print the full azd environment.
 | `AZURE_ENVIRONMENT` | `development` | Development enables Uvicorn reload; containers use `production`. |
 | `HOST`, `PORT` | `0.0.0.0`, `8000` | API bind address and port. |
 | `LOG_LEVEL` | `INFO` | Structured stdout logging verbosity. |
+| `AUTH_ENABLED` | `false` locally | Enforce user bearer tokens on data APIs; Terraform sets `true` in Azure. |
+| `ENTRA_TENANT_ID` | unset | Single tenant allowed to issue user access tokens. |
+| `ENTRA_CLIENT_ID` | unset | SPA/API app registration client ID, not a workload identity or Maps account ID. |
+| `ENTRA_API_SCOPE` | unset | Fully qualified delegated `access_as_user` scope URI. |
 | `AZURE_CLIENT_ID` | unset | API/job user-assigned managed identity client ID. |
 | `ALLOW_DEVELOPER_CREDENTIALS` | `false` | Explicit opt-in to DefaultAzureCredential for local live-mode development. |
 | `AZURE_MAPS_CLIENT_ID` | unset | Maps **account** client ID, not an identity client ID. |
@@ -51,6 +55,11 @@ authorization system.
 No Azure key or token belongs in a Vite environment variable or frontend
 bundle. The browser requests short-lived render-only authorization from the
 API.
+
+React discovers nonsecret Entra configuration at `/api/auth/config`; no frontend
+rebuild is required when deployment IDs change. MSAL obtains user access tokens
+at runtime and sends them in Authorization headers, including SSE requests.
+See [authentication](authentication.md) for redirects and local sign-in.
 
 ## Scenario limits and units
 

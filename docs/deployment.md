@@ -1,7 +1,7 @@
 # Azure deployment
 
 Terraform prepares resources; `azd` builds and deploys the API/web images.
-No live Azure provisioning or deployment has been performed by this change.
+Microsoft Entra sign-in is required for deployed data APIs.
 Use a pre-created resource group and a separate, pre-created Blob state store.
 Never put credentials in tfvars, images, JavaScript or repository variables.
 
@@ -17,12 +17,16 @@ Never put credentials in tfvars, images, JavaScript or repository variables.
   Blob Data Contributor** on the remote state container. Its
   `AZURE_PRINCIPAL_ID` is the Entra **object ID**, not a client/application ID.
   Terraform grants that principal AcrPush.
+- The principal also needs permission to create/own an Entra application and
+  service principal. Terraform manages the secretless SPA/API registration;
+  Azure subscription Owner does not automatically grant directory permissions.
 - Private deployments need a network-connected build/deployment runner with
   working private DNS. Hosted GitHub runners cannot reach private ACR/web.
 
 Registry research selected AzureRM **5.13.0**, AzureCAF **2.0.0**, and Time
 **0.14.2**, with matching pessimistic constraints in root/child modules.
 Preserve `infra/.terraform.lock.hcl`, including Linux AMD64/ARM64 checksums.
+The authentication module additionally pins the AzureAD provider.
 
 ## azd context and remote state
 
@@ -95,6 +99,16 @@ The API always has **internal ingress on 8000**. Only Nginx web ingress on
 **8080** is browser-accessible. Its `API_INTERNAL_URL` is an HTTPS origin with
 no `/api` or trailing slash; Nginx proxies API requests and SSE.
 
+### User sign-in
+
+Terraform creates a single-tenant SPA/API registration, exposes delegated
+`access_as_user`, and registers the web origin plus `/` as the SPA redirect.
+It enables `AUTH_ENABLED` and injects `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` and
+`ENTRA_API_SCOPE` into the API. These are nonsecret IDs, not workload credentials.
+React discovers them at runtime; no client secret or frontend rebuild is needed.
+Tenant consent policies may require administrator approval before the first
+sign-in. See [authentication](authentication.md) for access boundaries.
+
 ### GitHub Actions inputs
 
 Alongside the Azure and `RS_*` repository/environment variables above, use
@@ -129,6 +143,12 @@ sh infra/tests/deploy-refresh.test.sh
 azd provision
 azd deploy
 ```
+
+`azure.yaml` requests ACR remote builds, avoiding dependence on the local
+Docker daemon's network/TLS configuration. This requires ACR Tasks permissions
+and access to public package registries. For a private-only registry, use a
+connected build agent and change both `docker.remoteBuild` values to `false`,
+unless a suitable private ACR Tasks agent pool is configured.
 
 Provisioning uses an immutable Microsoft Python image and an explicit bootstrap
 HTTP server so the configured ports/probes work before application images
@@ -191,6 +211,7 @@ Root outputs captured into the azd environment:
 | Hook mapping | `AZURE_CONTAINER_APP_API_NAME`, `AZURE_CONTAINER_APP_WEB_NAME`, `AZURE_CONTAINER_APP_REFRESH_JOB_NAME` |
 | Endpoints | `SERVICE_WEB_URI` (browser/smoke), `SERVICE_API_URI` (internal only) |
 | Maps | `AZURE_MAPS_CLIENT_ID` |
+| User authentication | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_API_SCOPE` |
 | Cosmos | `COSMOS_ENDPOINT`, `COSMOS_DATABASE`, `COSMOS_CONTAINER` |
 | Monitoring | `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AZURE_LOG_ANALYTICS_WORKSPACE_ID` |
 
@@ -224,8 +245,9 @@ They do **not** prove regional availability, real ARM acceptance, RBAC
 propagation, DINE operation, DNS reachability or live application health.
 The explicit RBAC propagation delay is practical ordering, not a guarantee.
 No live Azure deployment or application container runtime validation is claimed
-by this infrastructure change. After deployment, smoke-test `SERVICE_WEB_URI`
-and verify a scheduled refresh execution.
+by the mocked tests. After deployment, run `scripts/smoke-auth.sh SERVICE_WEB_URI`
+and verify a scheduled refresh execution. A full scenario smoke additionally
+requires an interactively acquired delegated token; CI OIDC cannot act as a user.
 
 Review cleanup plans carefully: the shared resource group, network/DNS and
 remote state store must not be deleted with app-owned resources.

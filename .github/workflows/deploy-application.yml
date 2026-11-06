@@ -49,7 +49,7 @@ jobs:
           azd env refresh --no-prompt
       - name: Build and deploy containers
         run: azd deploy --no-prompt
-      - name: Verify the deployed demo
+      - name: Verify deployed authentication boundary
         run: |
           web_uri="$(azd env get-value SERVICE_WEB_URI)"
-          bash scripts/smoke-api.sh "$web_uri"
+          bash scripts/smoke-auth.sh "$web_uri"

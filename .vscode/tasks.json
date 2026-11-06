@@ -158,6 +158,13 @@
       "problemMatcher": []
     },
     {
+      "label": "auth:smoke",
+      "type": "shell",
+      "command": "bash scripts/smoke-auth.sh \"$(azd env get-value SERVICE_WEB_URI)\"",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
       "label": "run-refresh",
       "type": "shell",
       "command": "uv run python -m template_repository.refresh",

@@ -8,7 +8,8 @@ shipment units within factory capacity, and explore estimated costs under
 traffic, weather, and simulated disruptions.
 
 The local demo requires no Azure credentials. Live mode uses Azure Maps and
-Cosmos DB with managed identities. This is a demonstration, not a dispatch
+Cosmos DB with managed identities. Azure deployments require Microsoft Entra
+sign-in; the local demo explicitly disables user authentication. This is a demonstration, not a dispatch
 system, carrier quotation engine, or production supply-chain optimizer.
 
 ## Local development (no Azure credentials)
@@ -37,6 +38,7 @@ services and never silently falls back to simulation.
 
 - `GET /health` and `/health/live`: process liveness.
 - `GET /health/ready`: dependency readiness.
+- `GET /api/auth/config`: public, nonsecret sign-in configuration.
 - `GET /api/config`: mode, routing/map availability and scenario limits.
 - `GET /api/maps/token`: short-lived live map authorization; unavailable in demo.
 - Scenario CRUD, geocoding, optimization runs, route details, disruptions, and
@@ -78,6 +80,8 @@ not publish equivalent React build/testing tooling. The
 optimizer uses OR-Tools because no suitable Microsoft-maintained Python
 constrained-network solver exists. Azure integrations use Microsoft-maintained
 identity/Cosmos libraries, and the map uses Microsoft's Azure Maps Web SDK.
+Browser sign-in uses Microsoft's MSAL. PyJWT validates API token signatures
+because MSAL acquires tokens but does not validate inbound API bearer tokens.
 See [routing research](docs/routing-research.md) for algorithm tradeoffs and
 first-party references.
 
@@ -91,8 +95,9 @@ docker build -t supply-chain-web frontend
 The API listens on `8000`. The non-root Nginx web container listens on `8080`;
 set `API_INTERNAL_URL` to the API's internal origin **without a trailing slash**
 (default `http://api:8000`). It proxies `/api/` and `/health` without stripping the
-path, with buffering disabled and a long read timeout for SSE. Tokens are issued
-server-side only; no service key belongs in frontend environment variables.
+path, with buffering disabled and a long read timeout for SSE. User API tokens
+come from Entra through MSAL/PKCE; Maps tokens are brokered server-side.
+No client secret or service key belongs in frontend environment variables.
 
 `azure.yaml` maps services `api` (root) and `web` (`frontend`) to Container Apps.
 Terraform tags apps with `azd-service-name=api|web`, exposes only web publicly,
@@ -102,7 +107,9 @@ remote-state storage are required for Azure deployment.
 
 Read [deployment prerequisites](docs/deployment.md) before provisioning. Private
 deployments use existing networking and policy-managed DNS. Public demo
-ingress is not a user-authorization system: enter synthetic data only.
+ingress is protected by single-tenant Entra API authentication. Signed-in tenant
+users share the demo scenarios; there is no per-user ownership boundary.
+Enter synthetic data only. See [authentication](docs/authentication.md).
 
 Infrastructure validation (after reviewing existing instructions):
 
@@ -119,6 +126,7 @@ terraform -chdir=infra validate
 - [Local development and walkthrough](docs/local-development.md)
 - [Configuration](docs/configuration-reference.md)
 - [Azure deployment](docs/deployment.md)
+- [Entra authentication](docs/authentication.md)
 - [Operations, limits, and troubleshooting](docs/operations.md)
 - [Implementation checklist](.github/plans/supply-chain-routing-demo.md)
 

@@ -70,6 +70,7 @@ jobs:
             "$RUNNER_TEMP/terraform-validation.json"
       - run: terraform -chdir=infra test
       - run: sh infra/tests/deploy-refresh.test.sh
+      - run: bash -n scripts/smoke-api.sh scripts/smoke-auth.sh
 
   containers:
     name: Container builds

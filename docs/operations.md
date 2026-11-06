@@ -2,10 +2,10 @@
 
 ## What this demo does not promise
 
-Public demo data is synthetic and disposable. The public API is not a
-multi-tenant authorization system. Do not enter real supplier names, negotiated
-rates, personal addresses, or sensitive factory information. Add sign-in,
-per-user resource authorization, audit controls, and a reviewed retention policy
+Demo data is synthetic and disposable. Deployed APIs require single-tenant
+Entra sign-in but are not a per-user authorization system. Do not enter real
+supplier names, negotiated rates, personal addresses, or sensitive factory
+information. Add per-user resource authorization, audit controls, and a reviewed retention policy
 before accepting business data.
 
 Cold starts, external API coverage, forecast availability, and throttling affect
@@ -81,6 +81,7 @@ estimates in the application are unrelated to Azure hosting/API charges.
 | Frequent throttling | Pause refresh, reduce active scenarios, inspect transaction/RU usage, and verify bounded retries and cache hits. |
 | Run never finishes | Inspect run error/status and API replica restart logs; bounded in-process work is not a durable queue. |
 | Web loads but API fails | Check Nginx `API_INTERNAL_URL`, internal API ingress, readiness probes, and identity configuration. |
+| Sign-in fails or API returns 401 | Check the exact SPA redirect (origin plus `/`), tenant/client/scope configuration and token expiry. Do not substitute Maps tokens or managed-identity tokens for user tokens. |
 | Scheduled refresh fails | Confirm the job image matches the deployed API image and that job identity has both Maps and Cosmos data access. |
 
 ## Limits and retention
