@@ -46,20 +46,30 @@ Deploy the integrated result to the existing demo without changing its security 
   focused tests and browser walkthroughs, VS Code tasks/docs as needed. Run Ruff,
   strict Python tests, frontend lint/format/types/tests/build, Terraform checks,
   and real Chromium desktop/mobile flows. Inspect actual rendered layout.
-  Complete: 59 React tests, 181 warning-free Python tests, 10 mocked Terraform
+  Complete: 59 React tests, 181 warning-free Python tests, 11 mocked Terraform
   plans, lint/format/types/build, warning-free Terraform validation/TFLint, and
   two Chromium workflows pass. Desktop/mobile screenshots inspected; sidebar
   overflow and route annotation clutter corrected. Existing commands/tasks
   remain valid. Maps SDK bundle advisory is unchanged.
-- [ ] Traffic authorization (main; rollout prerequisite): SDK v3 calls the Traffic
+- [x] Traffic authorization (main; rollout prerequisite): SDK v3 calls the Traffic
   tile service for overlays, which the previous render-only identity cannot
   read. Add only traffic read to the existing custom role, preserving its ID and
   account-scoped assignment. Validate the permission boundary, re-preview and
   apply the non-destructive role update before claiming live overlay support.
-- [ ] Rollout (main; depends on integration and traffic authorization): revalidate the existing azd project,
+  Complete: 11 mocked plans, warning-free Terraform checks and real preflight
+  pass. Provision updated the role in place with zero additions/destruction.
+  Live browser-identity requests return HTTP 200 for incident and flow tiles;
+  role inspection confirms exactly render/traffic reads at Maps-account scope.
+- [x] Rollout (main; depends on integration and traffic authorization): revalidate the existing azd project,
   provision the minimal Graph permission metadata change, deploy API/web through
   ACR, verify healthy revisions, public auth boundaries and the real sign-in
   entry. Record that real profile access requires the user's delegated consent.
+  Complete: secure ACR builds deployed API/web; final API revision is healthy,
+  latest equals ready for both apps, and refresh uses the final API image.
+  Public readiness/discovery and rejected anonymous/invalid/spoofed credentials
+  pass. Deployed frontend assets match the validated build; real Microsoft PKCE
+  sign-in entry is verified. Actual user login, personal photo and authenticated
+  cloud optimization remain interactive acceptance, not claimed by mocked tests.
 
 ## Shared interaction contract
 

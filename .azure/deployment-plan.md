@@ -1,6 +1,6 @@
 # Fluent map workspace deployment
 
-Status: Validated
+Status: Deployed
 
 ## Current change and deployment context
 
@@ -105,6 +105,38 @@ Follow-up evidence recorded: 2026-11-06T17:00:26-06:00.
 Sources: [Web SDK traffic overlays](https://learn.microsoft.com/azure/azure-maps/map-show-traffic),
 the installed SDK v3 incident tile URL, and the live `Microsoft.Maps` provider
 operation descriptions for `services/render/read` and `services/traffic/read`.
+
+## Fluent rollout result
+
+The Fluent/Houston update is deployed:
+https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+
+Initial provision added only the delegated Graph permission metadata and
+reconciled eight diagnostic settings, with zero destruction. The traffic
+follow-up updated the existing custom role and those diagnostic settings in
+place: zero additions, nine changes, zero destruction. All 14 application ARM
+resources retain `SecurityControl=Ignore`.
+
+Secure ACR remote builds deployed the verified frontend and final backend.
+Final API revision `ca-njk0ztnkmgrmn-api--azd-1794006389` is healthy and running;
+web revision `ca-njk0ztnkmgrmn-web--azd-1794005383` remains healthy.
+Latest and ready revisions match. API and refresh share image
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/api-demo:azd-deploy-1794006304`;
+web uses
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/web-demo:azd-deploy-1794005250`.
+
+Live checks verify readiness/discovery and rejection of anonymous, invalid and
+spoofed credentials. Actual browser-identity requests return HTTP 200 for both
+incident and flow tiles. The custom role still has exactly render/traffic data
+reads, no management actions, and its assignment remains Maps-account scoped.
+Deployed JS/CSS match the locally validated build byte-for-byte; Chromium
+verified the actual Microsoft sign-in prompt and code/S256 PKCE request.
+
+Existing saved scenarios are preserved; use **Load Houston sample** for the new
+defaults. Existing sessions may need **Load profile photo** and delegated
+Microsoft consent. Real personal photo access, completed interactive user login
+and authenticated cloud optimization are not claimed; deterministic Graph and
+full scenario browser tests use the documented local fixtures.
 
 ## Previous Entra deployment record (historical)
 
