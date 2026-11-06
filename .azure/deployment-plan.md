@@ -1,6 +1,6 @@
 # Entra authentication deployment
 
-Status: Validated
+Status: Deployed
 
 ## Scope and architecture
 
@@ -83,9 +83,10 @@ disabled. The earlier networking blocker is being retried under this authorizati
 - [x] Implement Terraform registration and runtime configuration.
 - [x] Update documentation, smoke checks and developer configuration.
 - [x] Validate application, browser and Terraform behavior.
-- [ ] Invoke azure-validate, then azure-deploy.
-- [ ] Provision registration/resources, deploy and verify live authentication.
-  Ready after successful validation retry; no application resources applied yet.
+- [x] Invoke azure-validate, then azure-deploy.
+- [x] Provision registration/resources, deploy and verify live authentication.
+  Live authentication boundary and Microsoft sign-in entry are verified;
+  interactive account login remains an operator acceptance step.
 
 ## All validation checks pass
 
@@ -158,9 +159,37 @@ explicit exception-tag authorization, the retry passed:
 
 Validated by: azure-validate workflow, 2026-11-06. All recipe checks now pass.
 
-## Resumption requirements
+## Deployment and live role verification
 
-State access is restored. Complete the azure-validate status workflow and invoke
-azure-deploy for provisioning, registration creation and remote image deployment.
-Do not remove the exception tag silently or claim interactive Entra sign-in
-without browser evidence.
+`azd provision --no-prompt` completed with 55 additions, zero changes/deletions.
+The three workload identities have visible AcrPull before image deployment.
+API/refresh have Maps Data Reader and scoped Cosmos native Data Contributor;
+the separate browser identity has only the custom render role.
+All 14 listed application ARM resources, the dedicated groups and state account
+have the approved exception tag. Cosmos/state keys and anonymous Blob access
+remain disabled. The pre-created app group also has `azd-env-name=demo` so
+`azd show` discovers the actual endpoints.
+
+`azd deploy --no-prompt` securely built both images in ACR and deployed them.
+Error recovery fixed schema drift between CLI template reads and pinned ARM
+writes, explicit activation of image entry points, and ACA Host-based proxy
+routing. Five hook regressions and two real Nginx Host/Origin cases pass.
+The local Docker host still emits its existing AIO compatibility notice.
+Actionlint, shell syntax and VS Code task JSON validation pass.
+
+Both latest revisions are ready. The refresh image exactly matches API image
+`api-demo:azd-deploy-1794001816`; manual execution
+`ca-njk0ztnkmgrmn-refresh-5seaage` succeeded.
+API startup confirms Cosmos access and Azure Monitor telemetry export.
+
+- Web: https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+- Entra client ID: `2c924cbc-ad1d-4731-a699-8705627a882c`.
+- Registration: single tenant, v2 delegated scope, no secrets, exact SPA redirect.
+- `scripts/smoke-auth.sh`: readiness/discovery pass; anonymous, invalid and
+  spoofed credentials receive 401 Bearer challenges.
+- Chromium: real sign-in gate, expected tenant/client/callback, authorization
+  code with S256 PKCE, and Microsoft email prompt pass.
+
+No interactive user login, delegated token exchange, or authenticated cloud
+seed/optimization walkthrough was performed. These remain manual acceptance;
+no client preauthorization, fake token or production auth bypass was added.
