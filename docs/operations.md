@@ -82,6 +82,8 @@ estimates in the application are unrelated to Azure hosting/API charges.
 | Run never finishes | Inspect run error/status and API replica restart logs; bounded in-process work is not a durable queue. |
 | Web loads but API fails | Check Nginx `API_INTERNAL_URL`, internal API ingress, readiness probes, and identity configuration. |
 | Sign-in fails or API returns 401 | Check the exact SPA redirect (origin plus `/`), tenant/client/scope configuration and token expiry. Do not substitute Maps tokens or managed-identity tokens for user tokens. |
+| Return visit asks for sign-in | Check explicit sign-out, Microsoft Stay signed in, browser cookie/cache restrictions and Conditional Access. Cached state is not an indefinite session; do not disable token validation. |
+| Selecting a route does not change the plan | Purple is inspection only. Edit/save assumptions and use Calculate shipment plan to reallocate; the direction arrow is not live tracking. |
 | Scheduled refresh fails | Confirm the job image matches the deployed API image and that job identity has both Maps and Cosmos data access. |
 
 ## Limits and retention
@@ -112,3 +114,6 @@ scheduled refresh job on that same backend image.
 See [deployment](deployment.md) for provisioning inputs. Clean up only the
 reviewed demo resources; the resource group, networking, DNS policy, and remote
 state storage may be shared and must not be deleted indiscriminately.
+The [draw.io views](diagrams.md) and
+[deployed resource inventory](rg-scroute-eus2-architecture.md) identify these
+application, identity, data and external-prerequisite boundaries.

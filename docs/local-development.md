@@ -92,6 +92,10 @@ private file containing a valid delegated API token. CI instead uses
    recalculate the plan. Selecting an unused alternative makes it visible even
    when other alternatives are hidden. The default light grayscale basemap and
    white route casings keep routes readable over roads, imagery and traffic.
+   The selected arrow repeats from the supplier's **START** to the factory's
+   **END**, with a direction banner. It is illustrative, not live vehicle
+   tracking. Disable animation with its checkbox or use the operating system's
+   reduced-motion preference for a static midpoint arrow.
 4. Open **Disruptions**, choose **Close a route** or **Delay a facility**, then
    select a named route or facility on the map. Confirm the dashed magenta target
    preview before applying. Calculate a new shipment plan to update estimates.
@@ -112,6 +116,12 @@ a dominant map. On narrow screens the map and results appear first. Signed-in
 users see **Howdy First Last!** and their Microsoft profile photo after delegated
 `User.Read` consent; missing photos fall back to initials. See
 [authentication](authentication.md) for existing-session consent behavior.
+Returning sign-in uses MSAL's cache and conditional Microsoft-cookie SSO;
+explicit sign-out suppresses automatic restoration. Browser/tenant policy can
+still require sign-in. Local demo mode has no personal Microsoft account.
+
+The [draw.io diagrams](diagrams.md) explain the runtime, identity, solver/data and
+deployment boundaries behind this walkthrough.
 
 ## VS Code and containers
 

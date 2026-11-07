@@ -4,6 +4,9 @@ Terraform prepares resources; `azd` builds and deploys the API/web images.
 Microsoft Entra sign-in is required for deployed data APIs.
 Use a pre-created resource group and a separate, pre-created Blob state store.
 Never put credentials in tfvars, images, JavaScript or repository variables.
+See the [delivery/identity draw.io views](diagrams.md) and
+[deployed demo inventory](rg-scroute-eus2-architecture.md) for resource
+relationships; [architecture](../ARCHITECTURE.md) explains solver/data limits.
 
 ## Prerequisites
 
