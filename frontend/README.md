@@ -1,11 +1,15 @@
-# Routing Lab web
+# Supply Chain Routing web
 
-React/TypeScript with the Microsoft Azure Maps Web SDK directly managed by React
-effects. Native form controls avoid an additional UI dependency. No service keys
-or scenario contents are written to browser storage. MSAL stores its sign-in
-cache (including tokens) in tab-scoped `sessionStorage`, never `localStorage`.
-Only active scenario and run identifiers plus their concurrency token are
-remembered in `localStorage`. A remembered run
+React/TypeScript with Microsoft Fluent UI v9 and the Microsoft Azure Maps Web
+SDK directly managed by React effects. The square-corner, map-first workspace
+starts with editable Houston-area sample data.
+
+No service keys or scenario contents are written to browser storage. MSAL owns
+the API sign-in cache (including tokens) in origin-scoped `localStorage`, with
+conditional cookie-backed Microsoft SSO restoration. The app does not put raw
+tokens in its own cookies. Active scenario/run identifiers, their concurrency
+token and a nonsecret explicit-sign-out preference are also remembered.
+A remembered run
 is restored only when its scenario ETag still matches, preventing old currency or
 cost assumptions from being mislabeled after a reload.
 
@@ -30,9 +34,9 @@ With an unsupported host Node version, prefix commands with
 
 Vite runs on 5173 and proxies `/api` to `http://127.0.0.1:8000`.
 `API_PROXY_TARGET` can override the API origin during development.
-Both Vite and Nginx preserve the browser's original Host header, including its
-port, so same-origin API guards compare against the public web origin rather
-than the internal API address.
+Vite and local Nginx upstreams preserve the original browser Host, including its
+port. Container Apps upstreams require their internal hostname as Host;
+the original Origin remains intact in both cases.
 Start the demo API from the repository root with
 `APP_MODE=demo AZURE_ENVIRONMENT=production uv run supply-chain-routing`.
 
@@ -65,7 +69,13 @@ hosts the SPA and API; its redirect and post-logout redirect must be the current
 browser origin followed by `/` (including the trailing slash). No build-time
 identity configuration, client secret, or API key is needed.
 
-Sign-in and sign-out are explicit user actions. Every API request, including the
+Interactive sign-in and sign-out are explicit user actions. Startup can restore
+an active/sole cached account or make one cookie-backed `ssoSilent` attempt.
+Explicit sign-out suppresses automatic restoration and immediately locks other
+open tabs. Browser privacy, consent and tenant policy may still require sign-in;
+the app does not promise indefinite or browser-restart persistence.
+
+Every API request, including the
 Azure Maps token broker and fetch-based SSE stream, first calls
 `acquireTokenSilent` and sends the API access token in the `Authorization` header.
 Tokens are never put in URLs or logged. An interaction-required response
@@ -75,12 +85,28 @@ the remembered scenario and MSAL cache, and redirects through Microsoft logout.
 All signed-in tenant users share the demo scenarios; browser state is not an
 ownership boundary.
 
+Graph profile loading separately requests delegated `User.Read`. **Howdy First
+Last!** and the avatar use the actual own profile when available, with ID-token /
+initials fallback. Profile/token failures do not block planning. Graph token
+caching is disabled and profile artifacts stay in memory; API tokens never
+stand in for Graph tokens. See [authentication](../docs/authentication.md).
+
 ## Data and interaction guarantees
 
 - Demo mode always labels simulation and provides an SVG coordinate schematic,
   not an invented live basemap. Live map/token errors keep that fallback usable.
   Map attribution is not hidden; traffic overlay is optional and separate from
   route snapshot freshness. Coordinates are also editable with keyboard inputs.
+- **Calculate shipment plan** assigns supply at minimum estimated total cost
+  within factory capacity; it is not a fastest-route or fleet-dispatch action.
+  Blue routes show recommended quantities. Purple inspection does not change
+  allocations; unused candidates are hidden by default and use dashed slate
+  lines when shown. Magenta previews identify disruption targets before applying.
+- The selected route repeats a six-second supplier-to-factory arrow with
+  START/END labels and a direction banner. It is illustrative, not live tracking.
+  A checkbox and dynamic reduced-motion preference switch to a static arrow.
+  Azure Maps uses one stable HTML marker and SDK path-distance interpolation;
+  the schematic uses an SVG motion path. Animation does not drive React renders.
 - Save submits the **full** snake_case scenario with `If-Match`. A 412 preserves
   local edits and requires explicit reload. Geocoding resolves candidates only;
   choosing a candidate edits the location and requires Save.
@@ -123,3 +149,6 @@ discovery, even when authentication is disabled. Mocked authentication tests do
 not claim a real tenant sign-in was performed.
 Vite reports its advisory large-chunk warning for the bundled Azure Maps SDK
 (approximately 2 MB JavaScript before gzip); the production build succeeds.
+
+See the [local walkthrough](../docs/local-development.md),
+[architecture](../ARCHITECTURE.md) and [draw.io views](../docs/diagrams.md).
