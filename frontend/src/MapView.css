@@ -137,6 +137,55 @@
     box-shadow: 0 0 0 2px #5c2d91;
 }
 
+.map-panel .routing-map-marker.route-endpoint {
+    border-color: #5c2d91;
+    border-width: 3px;
+}
+
+.map-panel .route-motion-marker {
+    width: 32px;
+    height: 32px;
+    pointer-events: none;
+}
+
+.map-panel .route-motion-marker svg {
+    width: 100%;
+    height: 100%;
+}
+
+.map-panel .route-direction-arrow {
+    fill: #5c2d91;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    paint-order: stroke;
+}
+
+.map-panel .route-motion-follower {
+    offset-distance: 50%;
+    offset-rotate: auto;
+    pointer-events: none;
+}
+
+.map-panel .route-motion-follower.is-moving {
+    animation: route-travel 6s linear infinite;
+}
+
+@keyframes route-travel {
+    from {
+        offset-distance: 0%;
+    }
+    to {
+        offset-distance: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .map-panel .route-motion-follower.is-moving {
+        animation: none;
+        offset-distance: 50%;
+    }
+}
+
 .map-panel .routing-map-marker.is-preview {
     outline: 3px dashed #b4009e;
     outline-offset: 3px;
@@ -168,6 +217,7 @@
 .map-panel .map-applied-status,
 .map-panel .map-notice,
 .map-panel .map-route-summary,
+.map-panel .map-direction-summary,
 .map-panel .map-caption {
     margin: 0;
     padding: 8px 12px;
@@ -187,6 +237,11 @@
 }
 
 .map-panel .map-route-summary {
+    border-left: 4px solid #5c2d91;
+}
+
+.map-panel .map-direction-summary {
+    background: #f3effa;
     border-left: 4px solid #5c2d91;
 }
 

@@ -30,7 +30,7 @@ const sdk = vi.hoisted(() => ({
     },
     markers: [] as {
         getOptions: () => { position: number[]; draggable: boolean };
-        node: HTMLButtonElement;
+        node: HTMLElement;
     }[],
     sources: [] as {
         shapes: {
@@ -55,6 +55,17 @@ const sdk = vi.hoisted(() => ({
     removeSource: vi.fn(),
     removeMarker: vi.fn(),
     resized: vi.fn(),
+    positionsToPixels: vi.fn((positions: number[][]) =>
+        positions.map(([x, y]) => [x * 100, -y * 100]),
+    ),
+    pathLength: vi.fn(() => 1000),
+    pathPosition: vi.fn((path: number[][], distance: number) => {
+        const start = path[0];
+        const end = path[path.length - 1];
+        return start.map(
+            (value, index) => value + (end[index] - value) * (distance / 1000),
+        );
+    }),
 }));
 
 vi.mock("azure-maps-control", () => ({
@@ -100,15 +111,16 @@ vi.mock("azure-maps-control", () => ({
         setCamera = sdk.setCamera;
         setTraffic = sdk.setTraffic;
         resize = sdk.resized;
+        positionsToPixels = sdk.positionsToPixels;
     },
     HtmlMarker: class {
-        node: HTMLButtonElement;
+        node: HTMLElement;
         options = { position: [] as number[], draggable: false };
-        constructor(options: { htmlContent: HTMLButtonElement }) {
+        constructor(options: { htmlContent: HTMLElement }) {
             this.node = options.htmlContent;
         }
-        setOptions = (options: typeof this.options) => {
-            this.options = options;
+        setOptions = (options: Partial<typeof this.options>) => {
+            this.options = { ...this.options, ...options };
         };
         getOptions = () => this.options;
     },
@@ -162,6 +174,10 @@ vi.mock("azure-maps-control", () => ({
         ZoomControl: class {},
         CompassControl: class {},
         StyleControl: class {},
+    },
+    math: {
+        getLengthOfPath: sdk.pathLength,
+        getPositionAlongPath: sdk.pathPosition,
     },
 }));
 
@@ -637,7 +653,11 @@ it("fits network and inspected geometry only on explicit actions or topology edi
         moved.longitude,
         moved.latitude,
     ]);
-    expect(sdk.markers).toHaveLength(2);
+    expect(
+        sdk.markers.filter((marker) =>
+            marker.node.classList.contains("routing-map-marker"),
+        ),
+    ).toHaveLength(2);
 });
 
 it("uses Houston defaults, token auth, real traffic and road/satellite controls and disposes resources", async () => {
@@ -694,11 +714,119 @@ it("uses Houston defaults, token auth, real traffic and road/satellite controls 
     expect(sdk.popupRemove).toHaveBeenCalledTimes(1);
     expect(sdk.removeLayer).toHaveBeenCalledWith(sdk.layers);
     expect(sdk.removeSource).toHaveBeenCalledTimes(5);
-    expect(sdk.removeMarker).toHaveBeenCalledTimes(2);
+    expect(sdk.removeMarker).toHaveBeenCalledTimes(3);
     fireEvent.click(marker.node);
     expect(props.onSelectLocation).not.toHaveBeenCalled();
     const signal = vi.mocked(fetch).mock.calls[0][1]?.signal as AbortSignal;
     expect(signal.aborted).toBe(true);
+});
+
+it("moves only the selected SDK route from supplier to factory and cancels animation on selection changes and unmount", async () => {
+    let nextFrame = 0;
+    const callbacks = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal(
+        "requestAnimationFrame",
+        vi.fn((callback: FrameRequestCallback) => {
+            callbacks.set(++nextFrame, callback);
+            return nextFrame;
+        }),
+    );
+    const cancel = vi.fn((id: number) => callbacks.delete(id));
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    const step = (time: number) =>
+        act(() => {
+            const current = [...callbacks.values()];
+            callbacks.clear();
+            current.forEach((callback) => callback(time));
+        });
+    const view = render(<MapView {...props} mapsAvailable />);
+    await ready();
+    const marker = sdk.markers.find(
+        (item) => item.node.className === "route-motion-marker",
+    )!;
+    expect(sdk.markers[0].node).toHaveTextContent("START");
+    expect(sdk.markers[1].node).toHaveTextContent("END");
+    expect(marker.getOptions().position).toEqual(run.routes[0].geometry[0]);
+    step(1000);
+    step(4000);
+    expect(sdk.pathPosition).toHaveBeenCalledWith(
+        run.routes[0].geometry,
+        500,
+        "meters",
+    );
+    expect(marker.getOptions().position).not.toEqual(run.routes[0].geometry[0]);
+    expect(marker.node.querySelector("svg")?.style.transform).toMatch(
+        /^rotate/,
+    );
+    view.rerender(<MapView {...props} mapsAvailable selected="route-2" />);
+    expect(cancel).toHaveBeenCalled();
+    expect(callbacks.size).toBe(1);
+    expect(sdk.pathPosition).toHaveBeenCalledWith(
+        run.routes[1].geometry,
+        0,
+        "meters",
+    );
+    expect(sdk.setCamera).toHaveBeenCalledTimes(1);
+    expect(sdk.sources).toHaveLength(5);
+    view.rerender(<MapView {...props} mapsAvailable selected={null} />);
+    expect(marker.node.hidden).toBe(true);
+    expect(callbacks.size).toBe(0);
+    expect(sdk.markers[0].node).not.toHaveTextContent("START");
+    view.rerender(<MapView {...props} mapsAvailable />);
+    expect(callbacks.size).toBe(1);
+    view.unmount();
+    expect(callbacks.size).toBe(0);
+    expect(sdk.removeMarker).toHaveBeenCalledWith(marker);
+});
+
+it("uses static SDK direction for reduced motion and allows animation to be turned off without changing the route", async () => {
+    const preference = {
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal(
+        "matchMedia",
+        vi.fn(() => preference),
+    );
+    const frame = vi.fn(() => 1);
+    vi.stubGlobal("requestAnimationFrame", frame);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const view = render(<MapView {...props} mapsAvailable />);
+    await ready();
+    const toggle = screen.getByRole("checkbox", {
+        name: "Animate selected route",
+    });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toBeDisabled();
+    expect(frame).not.toHaveBeenCalled();
+    expect(sdk.pathPosition).toHaveBeenCalledWith(
+        run.routes[0].geometry,
+        500,
+        "meters",
+    );
+    expect(
+        screen.getByRole("status", { name: "Selected route direction" }),
+    ).toHaveTextContent("Reduced motion is enabled");
+    act(() => {
+        preference.matches = false;
+        preference.addEventListener.mock.calls[0][1]();
+    });
+    expect(toggle).toBeChecked();
+    expect(frame).toHaveBeenCalledTimes(1);
+    fireEvent.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(sdk.pathPosition).toHaveBeenCalledWith(
+        run.routes[0].geometry,
+        500,
+        "meters",
+    );
+    expect(sdk.setCamera).toHaveBeenCalledTimes(1);
+    view.unmount();
+    expect(preference.removeEventListener).toHaveBeenCalledWith(
+        "change",
+        expect.any(Function),
+    );
 });
 
 it("uses safe DOM popup content for user-supplied names and includes estimate labels", async () => {

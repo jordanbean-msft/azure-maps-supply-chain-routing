@@ -30,6 +30,7 @@ interface Props {
 
 interface DisplayProps extends Props {
     showAlternatives: boolean;
+    animateRoute: boolean;
 }
 
 const BLUE = "#0078d4";
@@ -38,6 +39,7 @@ const PREVIEW = "#b4009e";
 const SLATE = "#5c6873";
 const TEAL = "#00796b";
 const RED = "#c42b1c";
+const ROUTE_ARROW = "M 10 0 L -8 -7 L -4 0 L -8 7 Z";
 
 function laneName(route: RouteCandidate, locations: Location[]): string {
     const name = (id: string) =>
@@ -153,6 +155,7 @@ function schematicNameLines(name: string): string[] {
 function Schematic(props: DisplayProps) {
     const { locations, routes, selected, onSelect, onSelectLocation, target } =
         props;
+    const selectedRoute = routes.find((route) => route.id === selected);
     const points = [
         ...locations.map((item) => [item.longitude, item.latitude]),
         ...routes.flatMap((route) => route.geometry),
@@ -278,6 +281,25 @@ function Schematic(props: DisplayProps) {
                                         : "6 4"
                                 }
                             />
+                            {inspected && route.geometry.length > 1 && (
+                                <g
+                                    key={route.id}
+                                    className={`route-motion-follower${props.animateRoute ? " is-moving" : ""}`}
+                                    style={{
+                                        offsetPath: `path("M ${route.geometry
+                                            .map((point) =>
+                                                project(point).join(","),
+                                            )
+                                            .join(" L ")}")`,
+                                    }}
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d={ROUTE_ARROW}
+                                        className="route-direction-arrow"
+                                    />
+                                </g>
+                            )}
                             <text
                                 x={x}
                                 y={y - 36}
@@ -299,7 +321,15 @@ function Schematic(props: DisplayProps) {
             {locations.map((location) => {
                 const [x, y] = project([location.longitude, location.latitude]);
                 const anchor = x < 300 ? "start" : x > 500 ? "end" : "middle";
-                const nameLines = schematicNameLines(location.name);
+                const endpoint =
+                    selectedRoute?.supplier_id === location.id
+                        ? "START"
+                        : selectedRoute?.factory_id === location.id
+                          ? "END"
+                          : null;
+                const nameLines = schematicNameLines(
+                    `${endpoint ? `${endpoint} · ` : ""}${location.name}`,
+                );
                 const labelY = Math.max(
                     32,
                     y - 24 - (nameLines.length - 1) * 28,
@@ -310,11 +340,11 @@ function Schematic(props: DisplayProps) {
                 return (
                     <g
                         key={location.id}
-                        className="schematic-facility"
+                        className={`schematic-facility${endpoint ? " route-endpoint" : ""}`}
                         role="button"
                         tabIndex={0}
                         aria-label={`Select facility ${location.name}`}
-                        aria-description={`${location.kind}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`}
+                        aria-description={`${location.kind}${endpoint ? ` · Route ${endpoint}` : ""}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`}
                         aria-pressed={props.selectedLocation === location.id}
                         onClick={() => onSelectLocation?.(location.id)}
                         onKeyDown={(event) =>
@@ -327,6 +357,16 @@ function Schematic(props: DisplayProps) {
                             {location.name}: {location.latitude},{" "}
                             {location.longitude}
                         </title>
+                        {endpoint && (
+                            <circle
+                                cx={x}
+                                cy={y}
+                                r={14}
+                                fill="none"
+                                stroke={PURPLE}
+                                strokeWidth={3}
+                            />
+                        )}
                         {(preview ||
                             props.selectedLocation === location.id) && (
                             <circle
@@ -405,6 +445,12 @@ interface MapResources {
     popup: atlas.Popup;
     markers: Map<string, MarkerEntry>;
     topology: string | null;
+    motion: {
+        marker: atlas.HtmlMarker;
+        node: HTMLDivElement;
+        arrow: SVGSVGElement;
+        added: boolean;
+    };
 }
 
 function fit(map: atlas.Map, positions: number[][]): void {
@@ -561,12 +607,28 @@ function AzureMap(
             layers.forEach((layer) =>
                 map?.events.add("click", layer, selectRoute),
             );
+            const node = document.createElement("div");
+            node.className = "route-motion-marker";
+            node.hidden = true;
+            node.setAttribute("aria-hidden", "true");
+            node.innerHTML = `<svg viewBox="-12 -12 24 24"><path class="route-direction-arrow" d="${ROUTE_ARROW}"/></svg>`;
+            const marker = new atlas.HtmlMarker({
+                htmlContent: node,
+                anchor: "center",
+                draggable: false,
+            });
             resources.current = {
                 sources,
                 layers,
                 popup: new atlas.Popup({ closeButton: true }),
                 markers: new Map(),
                 topology: null,
+                motion: {
+                    marker,
+                    node,
+                    arrow: node.querySelector("svg")!,
+                    added: false,
+                },
             };
             setReady(true);
         };
@@ -652,6 +714,7 @@ function AzureMap(
                         map?.events.remove("click", layer, selectRoute),
                     );
                     current.popup.remove();
+                    map.markers.remove(current.motion.marker);
                     map.layers.remove(current.layers);
                     current.sources.forEach((source) =>
                         map?.sources.remove(source),
@@ -747,16 +810,25 @@ function AzureMap(
                 props.target?.kind === "facility" &&
                 props.target.id === location.id;
             const inspected = props.selectedLocation === location.id;
+            const selectedRoute = props.routes.find(
+                (route) => route.id === props.selected,
+            );
+            const endpoint =
+                selectedRoute?.supplier_id === location.id
+                    ? "START"
+                    : selectedRoute?.factory_id === location.id
+                      ? "END"
+                      : null;
             const status = facilityStatus(location.id, props.disruptions);
-            entry.node.className = `routing-map-marker ${location.kind}${preview ? " is-preview" : ""}${inspected ? " is-inspected" : ""}${status ? " is-delayed" : ""}`;
-            entry.node.textContent = `${location.kind === "supplier" ? "●" : "■"} ${location.name}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`;
+            entry.node.className = `routing-map-marker ${location.kind}${endpoint ? " route-endpoint" : ""}${preview ? " is-preview" : ""}${inspected ? " is-inspected" : ""}${status ? " is-delayed" : ""}`;
+            entry.node.textContent = `${endpoint ? `${endpoint} · ` : ""}${location.kind === "supplier" ? "●" : "■"} ${location.name}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`;
             entry.node.setAttribute(
                 "aria-label",
                 `Select facility ${location.name}`,
             );
             entry.node.setAttribute(
                 "aria-description",
-                `${location.kind}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`,
+                `${location.kind}${endpoint ? ` · Route ${endpoint}` : ""}${preview ? " · TARGET PREVIEW" : ""}${status ? ` · ${status}` : ""}`,
             );
             entry.node.setAttribute("aria-pressed", String(inspected));
             entry.marker.setOptions({
@@ -764,6 +836,10 @@ function AzureMap(
                 draggable: !props.disabled,
             });
         });
+        if (!current.motion.added) {
+            map.markers.add(current.motion.marker);
+            current.motion.added = true;
+        }
         // Only coordinate/topology changes fit automatically; inspection and preview never move the camera.
         const topology = JSON.stringify({
             locations: props.locations.map((item) => [
@@ -780,6 +856,67 @@ function AzureMap(
         }
     }, [ready, props]);
 
+    const selectedRoute = props.routes.find(
+        (item) => item.id === props.selected,
+    );
+    useEffect(() => {
+        const map = mapRef.current;
+        const motion = resources.current?.motion;
+        if (!ready || !map || !motion) return;
+        const geometry = selectedRoute?.geometry;
+        motion.node.toggleAttribute("hidden", !geometry || geometry.length < 2);
+        if (!geometry || geometry.length < 2) return;
+        const length = atlas.math.getLengthOfPath(geometry, "meters");
+        if (length <= 0) {
+            motion.node.setAttribute("hidden", "");
+            return;
+        }
+        let frame = 0;
+        let start: number | null = null;
+        let progress = props.animateRoute ? 0 : 0.5;
+        const draw = () => {
+            const position = atlas.math.getPositionAlongPath(
+                geometry,
+                length * progress,
+                "meters",
+            );
+            const ahead = atlas.math.getPositionAlongPath(
+                geometry,
+                Math.min(
+                    length,
+                    length * progress + Math.max(1, length / 1000),
+                ),
+                "meters",
+            );
+            const [from, to] = map.positionsToPixels([position, ahead]);
+            if (from && to) {
+                const angle =
+                    (Math.atan2(to[1] - from[1], to[0] - from[0]) * 180) /
+                    Math.PI;
+                motion.arrow.style.setProperty(
+                    "transform",
+                    `rotate(${angle}deg)`,
+                );
+            }
+            motion.marker.setOptions({ position });
+        };
+        const tick = (time: number) => {
+            start ??= time;
+            if (document.visibilityState !== "hidden") {
+                progress = ((time - start) % 6000) / 6000;
+                draw();
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        draw();
+        map.events.add("move", draw);
+        if (props.animateRoute) frame = requestAnimationFrame(tick);
+        return () => {
+            cancelAnimationFrame(frame);
+            if (mapRef.current === map) map.events.remove("move", draw);
+        };
+    }, [ready, selectedRoute, props.animateRoute]);
+
     useEffect(() => {
         if (ready)
             mapRef.current?.setTraffic({
@@ -788,9 +925,6 @@ function AzureMap(
             });
     }, [ready, traffic]);
 
-    const selectedRoute = props.routes.find(
-        (item) => item.id === props.selected,
-    );
     const selectedFacility = props.locations.find(
         (item) => item.id === props.selectedLocation,
     );
@@ -853,7 +987,27 @@ function AzureMap(
 export default function MapView(props: Props) {
     const [failure, setFailure] = useState<string | null>(null);
     const [showAlternatives, setShowAlternatives] = useState(false);
-    const display = { ...props, showAlternatives };
+    const [animateRoute, setAnimateRoute] = useState(true);
+    const [reducedMotion, setReducedMotion] = useState(
+        () =>
+            window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
+            false,
+    );
+    useEffect(() => {
+        const preference = window.matchMedia?.(
+            "(prefers-reduced-motion: reduce)",
+        );
+        if (!preference) return;
+        const update = () => setReducedMotion(preference.matches);
+        update();
+        preference.addEventListener("change", update);
+        return () => preference.removeEventListener("change", update);
+    }, []);
+    const display = {
+        ...props,
+        showAlternatives,
+        animateRoute: animateRoute && !reducedMotion,
+    };
     const live = props.mapsAvailable && !failure;
     const recommended = props.routes.filter(
         (route) => shipmentQuantity(route, props) > 0,
@@ -892,7 +1046,40 @@ export default function MapView(props: Props) {
                     {recommended.length === 1 ? "route" : "routes"} · Blue lines
                     carry shipments; labels show units.
                 </span>
+                {selectedRoute && (
+                    <Checkbox
+                        label="Animate selected route"
+                        checked={display.animateRoute}
+                        disabled={reducedMotion}
+                        onChange={(_, data) =>
+                            setAnimateRoute(data.checked === true)
+                        }
+                    />
+                )}
             </div>
+            {selectedRoute && (
+                <p
+                    className="map-direction-summary"
+                    role="status"
+                    aria-label="Selected route direction"
+                >
+                    <strong>START · Supplier:</strong>{" "}
+                    {props.locations.find(
+                        (item) => item.id === selectedRoute.supplier_id,
+                    )?.name ?? selectedRoute.supplier_id}
+                    {" → "}
+                    <strong>END · Factory:</strong>{" "}
+                    {props.locations.find(
+                        (item) => item.id === selectedRoute.factory_id,
+                    )?.name ?? selectedRoute.factory_id}
+                    {". "}
+                    {display.animateRoute
+                        ? "The arrow moves from start to end."
+                        : "Static arrow shows travel direction."}{" "}
+                    This is not live vehicle tracking.
+                    {reducedMotion && " Reduced motion is enabled."}
+                </p>
+            )}
             {props.target && (
                 <div className="map-target-status has-target" role="status">
                     TARGET PREVIEW · {targetLabel(props)}

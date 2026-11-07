@@ -56,6 +56,60 @@ test("seed → edit → optimize → close a route → compare persisted results
     await expect(
         schematic.getByRole("button", { name: /^Select route / }),
     ).toHaveCount(recommendedCount + 1);
+    const direction = page.getByRole("status", {
+        name: "Selected route direction",
+    });
+    await expect(direction).toContainText("START · Supplier:");
+    await expect(direction).toContainText("END · Factory:");
+    await expect(direction).toContainText("not live vehicle tracking");
+    const follower = schematic.locator(".route-motion-follower");
+    await expect(follower).toHaveCount(1);
+    const travel = await follower.evaluate(async (element) => {
+        const animation = element.getAnimations()[0];
+        animation.pause();
+        const line = element.parentElement!.querySelector("polyline")!;
+        const first = line.points.getItem(0);
+        const last = line.points.getItem(line.points.numberOfItems - 1);
+        const matrix = line.getScreenCTM()!;
+        const start = new DOMPoint(first.x, first.y).matrixTransform(matrix);
+        const end = new DOMPoint(last.x, last.y).matrixTransform(matrix);
+        const distances: number[] = [];
+        for (const [time, target] of [
+            [0, start],
+            [5999, end],
+        ] as const) {
+            animation.currentTime = time;
+            await new Promise(requestAnimationFrame);
+            const box = element.getBoundingClientRect();
+            distances.push(
+                Math.hypot(
+                    box.x + box.width / 2 - target.x,
+                    box.y + box.height / 2 - target.y,
+                ),
+            );
+        }
+        animation.play();
+        return distances;
+    });
+    travel.forEach((distance) => expect(distance).toBeLessThan(12));
+    const animate = page.getByRole("checkbox", {
+        name: "Animate selected route",
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(animate).toBeDisabled();
+    await expect(animate).not.toBeChecked();
+    await expect(follower).not.toHaveClass(/is-moving/);
+    expect(
+        await follower.evaluate((element) => element.getAnimations().length),
+    ).toBe(0);
+    await expect(direction).toContainText(
+        "Static arrow shows travel direction",
+    );
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await expect(animate).toBeChecked();
+    await animate.uncheck();
+    await expect(follower).not.toHaveClass(/is-moving/);
+    await animate.check();
     await expect(page.locator(".map-target-status")).toHaveCount(0);
     await page.screenshot({
         path: test.info().outputPath("shipment-plan-desktop.png"),

@@ -1,6 +1,132 @@
-# Text containment deployment
+# Selected-route direction deployment
 
 Status: Deployed
+
+## Current scope
+
+Modify the existing Terraform/azd `demo` environment in East US 2,
+subscription `0ec6c427-01d3-4462-ae56-fd9656157157`, `rg-scroute-eus2`.
+Autopilot continues the existing demo update. Animate only the inspected route
+from supplier to factory, label start/destination, and provide static direction
+cues for reduced-motion preferences. Support both Azure Maps and the schematic.
+Keep allocation colors/semantics, map interaction and viewport unchanged.
+
+Deploy web only via secure ACR. No new dependencies, resources, permissions,
+capacity or commands. Preserve SSO, backend/refresh images, registration, data,
+roles and authorized exception tags.
+
+## Current preparation checklist
+
+- [x] Inspect existing map layers, route geometry and browser coverage.
+- [x] Implement selected-route direction and reduced-motion behavior.
+- [x] Verify focused map regressions, frontend checks and browser animation.
+- [x] Complete current Azure validation and record proof.
+- [x] Reconcile reviewed non-destructive infrastructure and verify AcrPull.
+- [x] Deploy web only; verify ready revision, exact assets and auth smoke.
+
+## Functional verification
+
+The selected route has a six-second repeating supplier-to-factory arrow,
+START/END labels and endpoint emphasis in both map modes. Azure Maps uses its
+SDK distance/path utilities and a stable HTML marker, oriented with projected
+screen coordinates so rotation/pitch are honored. The schematic uses a native
+CSS SVG motion path. No frame-driven React rendering, new source or map rebuild.
+
+An animation checkbox permits static direction; OS reduced-motion changes are
+honored immediately. Only the inspected route moves. Deselecting/changing routes
+or unmounting cancels the prior frame loop; hidden tabs skip frame updates.
+The banner explicitly distinguishes direction illustration from vehicle tracking.
+
+Final ESLint, Prettier, 73 React tests, TypeScript and production build pass.
+Four Chromium workflows pass, including actual rendered arrow positions at
+the start/end, pause/resume, reduced-motion changes and long-text containment
+at six widths. SDK mock tests cover movement, projection, selection changes,
+cleanup, static direction and stable sources/camera. Desktop/mobile screenshots
+inspected. No real personal authenticated cloud-map session is claimed.
+Established commands/entrypoints and VS Code automation are unchanged.
+
+## 7. Validation Proof
+
+Current evidence recorded: 2026-11-06T18:04:44-06:00.
+
+The current azure-validate workflow ran the existing Terraform/azd recipe.
+AZD installation, authentication, selected `demo` environment, subscription/
+tenant/location and official azure.yaml schema validation pass.
+`azd provision --preview --no-prompt` succeeds; real plan JSON inspection
+asserts exactly eight in-place diagnostic-setting updates, zero additions/
+destruction and no other resource changes. Current preview is saved in session
+`files/route-direction-preview.log`.
+
+The complete `validate-terraform.sh infra` preflight passes all ten checks using
+azd-generated `demo.conf.json` and `main.tfvars.json`. Authenticated remote-state
+access, format/validate, real plan, state list and template/JSON checks have zero
+errors/warnings. Generated `infra/tfplan` removed. `azd package --all --no-prompt`
+passes in secure remote-build mode; Docker contexts/non-root users and checked-in
+lockfiles remain unchanged.
+
+ESLint, Prettier, 73 React tests, TypeScript and production build pass. Four
+Chromium workflows pass, including actual supplier-to-factory animation geometry,
+reduced-motion/pause, normal routing/profile/SSO and six-width text containment.
+Screenshots inspected; only the existing Maps bundle-size advisory remains.
+No new command or entrypoint requires a VS Code automation change.
+
+All 14 application ARM resources retain the authorized exception tag. The 97
+inherited policy assignments retrieved earlier this session remain applicable;
+no infrastructure source or policy setting changed. Static role review and
+the no-change plan confirm unchanged registry AcrPull/AcrPush, Maps-account
+workload Data Reader, scenario-container native Cosmos Data Contributor,
+and browser render/traffic reads only. Animation uses no additional data API,
+capacity or permission.
+
+## All validation checks pass
+
+- [x] AZD installation, selected environment, authentication, subscription/location.
+- [x] Official azure.yaml schema validation.
+- [x] Aspire pre/post-provisioning checks not applicable.
+- [x] Non-destructive real provision preview.
+- [x] Frontend build and functional verification.
+- [x] Existing Docker contexts, non-root users and checked-in lockfiles unchanged.
+- [x] Secure remote-build mode package validation.
+- [x] Complete Terraform preflight including authenticated state and real plan.
+- [x] Existing policy/tag preservation and static data-plane role verification.
+
+## Selected-route direction rollout result
+
+Verified: 2026-11-06T18:09:19-06:00.
+
+Web update deployed:
+https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/
+
+`azd provision --no-prompt` completed the reviewed eight in-place diagnostic
+reconciliations with no additions/destruction. Registry-scoped AcrPull was
+confirmed for all three workloads before successful secure ACR
+`azd deploy web --no-prompt`. `azd show` confirms the expected endpoints.
+
+Revision `ca-njk0ztnkmgrmn-web--azd-1794010096` equals latest ready and is
+healthy/running. Image:
+`crnjk0ztnkmgrmn.azurecr.io/supply-chain-routing/web-demo:azd-deploy-1794009965`.
+After waiting for activation, deployed `index-CUSBZMkw.js` and
+`index-BDe50HX1.css` match the validated build byte-for-byte. Live auth smoke
+passes: discovery/readiness available; anonymous, invalid and spoofed
+credentials rejected.
+
+API revision remains `ca-njk0ztnkmgrmn-api--azd-1794006389`, latest equals ready;
+API/refresh keep `api-demo:azd-deploy-1794006304`.
+Live role verification confirms unchanged Maps-account workload Data Reader,
+browser render/traffic role, and scenario-container native Cosmos Data
+Contributor for API/refresh. All 14 application ARM resources retain the
+authorized tag. SSO, registration, data, backend and scopes are unchanged.
+
+73 unit tests, frontend checks/build and four local Chromium workflows pass.
+The real schematic animation is measured from source to destination; SDK
+movement/projection/cleanup is tested with deterministic mocks. Reduced-motion,
+manual static mode, stable camera and six-width text containment are verified.
+Screenshots inspected. Personal authenticated live-map visual acceptance is
+not claimed by deterministic browser fixtures.
+
+## Previous text containment deployment (historical)
+
+Previous status: Deployed
 
 ## Current scope
 

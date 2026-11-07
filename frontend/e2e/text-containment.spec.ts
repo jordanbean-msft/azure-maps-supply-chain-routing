@@ -91,6 +91,7 @@ test("panel text, controls and warning bullets stay inside their containers", as
                     ".disruption-list li",
                     ".map-legend > span",
                     ".map-route-controls",
+                    ".map-direction-summary",
                     ".schematic",
                 ];
                 const failures: string[] = [];
