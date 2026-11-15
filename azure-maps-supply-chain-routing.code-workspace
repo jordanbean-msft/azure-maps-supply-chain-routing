@@ -1,10 +1,18 @@
 {
-  "folders": [{ "path": "." }],
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
   "settings": {
-    "editor.rulers": [100],
+    "editor.rulers": [
+      100
+    ],
     "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "python.testing.pytestEnabled": true,
-    "python.testing.pytestArgs": ["-v"],
+    "python.testing.pytestArgs": [
+      "-v"
+    ],
     "python.testing.cwd": "${workspaceFolder}",
     "[python]": {
       "editor.defaultFormatter": "charliermarsh.ruff",
@@ -15,7 +23,9 @@
     },
     "editor.formatOnSave": true,
     "python.envFile": "${workspaceFolder}/.env",
-    "coverage-gutters.coverageFileNames": ["coverage.xml"],
+    "coverage-gutters.coverageFileNames": [
+      "coverage.xml"
+    ],
     "coverage-gutters.showLineCoverage": true,
     "coverage-gutters.showRulerCoverage": true,
     "files.exclude": {
@@ -23,7 +33,8 @@
       "**/*.egg-info": true,
       "**/.mypy_cache": true,
       ".venv": true
-    }
+    },
+    "azureTerraform.checkTerraformCmd": false
   },
   "extensions": {
     "recommendations": [
