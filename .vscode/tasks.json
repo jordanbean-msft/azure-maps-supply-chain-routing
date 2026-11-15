@@ -2,6 +2,28 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "containers:build",
+      "type": "shell",
+      "command": "podman build --format docker -t localhost/supply-chain-api:local . && podman build --format docker -t localhost/supply-chain-web:local frontend",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "containers:smoke",
+      "type": "shell",
+      "command": "sh scripts/smoke-containers.sh",
+      "dependsOn": "containers:build",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "containers:acr-login",
+      "type": "shell",
+      "command": "DOCKER_COMMAND=podman az acr login --name \"$(azd env get-value AZURE_CONTAINER_REGISTRY)\"",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
       "label": "sync-venv",
       "type": "shell",
       "command": "uv sync --extra dev",

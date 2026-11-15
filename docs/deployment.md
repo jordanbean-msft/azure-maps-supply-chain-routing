@@ -12,7 +12,8 @@ relationships; [architecture](../ARCHITECTURE.md) explains solver/data limits.
 
 - Terraform 1.14+ for the included mock tests (configuration requires 1.9+),
   Azure CLI with the Container Apps extension, Azure Developer CLI, Python 3 and
-  Docker. The chosen region must support ACA, ACR and Cosmos NoSQL serverless.
+  Podman for local containers (Docker remains supported in CI).
+  The chosen region must support ACA, ACR and Cosmos NoSQL serverless.
 - Register Microsoft.App, ContainerRegistry, Maps, DocumentDB, ManagedIdentity,
   Insights, OperationalInsights and Network resource providers as appropriate.
 - The deployment principal needs resource provisioning rights, custom role
@@ -173,11 +174,52 @@ azd provision
 azd deploy
 ```
 
-`azure.yaml` requests ACR remote builds, avoiding dependence on the local
-Docker daemon's network/TLS configuration. This requires ACR Tasks permissions
+`azure.yaml` requests ACR remote builds, avoiding dependence on a local
+Docker daemon or the developer machine's CPU architecture. This requires ACR Tasks permissions
 and access to public package registries. For a private-only registry, use a
 connected build agent and change both `docker.remoteBuild` values to `false`,
 unless a suitable private ACR Tasks agent pool is configured.
+
+### Podman on the developer machine
+
+Use fully qualified base-image names so Podman does not require interactive
+short-name registry selection. No Docker alias, socket service or privileged
+container is required.
+
+```sh
+podman build --format docker -t localhost/supply-chain-api:local .
+podman build --format docker -t localhost/supply-chain-web:local frontend
+sh scripts/smoke-containers.sh
+sh infra/tests/nginx-proxy.test.sh
+
+registry="$(azd env get-value AZURE_CONTAINER_REGISTRY)"
+server="$(azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT)"
+DOCKER_COMMAND=podman az acr login --name "$registry"
+tag="podman-check-$(date -u +%Y%m%d%H%M%S)"
+podman tag localhost/supply-chain-api:local "$server/podman-check/api:$tag"
+podman tag localhost/supply-chain-web:local "$server/podman-check/web:$tag"
+podman push "$server/podman-check/api:$tag"
+podman push "$server/podman-check/web:$tag"
+```
+
+Azure CLI uses its signed-in Entra identity; ACR admin credentials remain
+disabled. Never print tokens or persist them in repository files. Test pushes
+above retain the native build architecture and do not update running apps.
+Container Apps requires Linux AMD64 images: **do not deploy ARM64 local images**.
+On an ARM64 machine without configured AMD64 emulation, `--platform linux/amd64`
+alone cannot execute AMD64 build steps. Use the existing `remoteBuild: true`
+configuration and `azd deploy --no-prompt` for AMD64 builds, pushes and deployment.
+The existing postdeploy hooks activate application entry points and synchronize
+the refresh job to the API image. Review all working-tree changes before deploy:
+azd builds local source, including uncommitted changes.
+
+VS Code tasks `containers:build`, `containers:smoke`, and
+`containers:acr-login` expose these local operations; `azd-deploy` retains the
+remote deployment workflow. The smoke task stops its containers after checking
+API liveness, web liveness, proxied health and API configuration.
+`--format docker` preserves the Dockerfile health checks (Podman's default OCI
+format omits them). The smoke test uses rootless `slirp4netns` networking and a
+shared network namespace, avoiding a dependency on custom bridge/DNS helpers.
 
 Provisioning uses an immutable Microsoft Python image and an explicit bootstrap
 HTTP server so the configured ports/probes work before application images

@@ -1,15 +1,16 @@
 #!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")/../.."
+container_engine="${CONTAINER_ENGINE:-podman}"
 
 for upstream in 127.0.0.1 api.test.azurecontainerapps.io; do
     expected="browser.local:8080"
     if [ "$upstream" != "127.0.0.1" ]; then
         expected="$upstream:8081"
     fi
-    docker run --rm -i --entrypoint sh \
+    "$container_engine" run --rm -i --entrypoint sh \
         --add-host api.test.azurecontainerapps.io:127.0.0.1 \
-        nginxinc/nginx-unprivileged:stable-alpine -eu -c '
+        docker.io/nginxinc/nginx-unprivileged:stable-alpine -eu -c '
         cat > /tmp/proxy-template
         export API_INTERNAL_URL="http://$1:8081"
         envsubst '\''${API_INTERNAL_URL}'\'' < /tmp/proxy-template > /tmp/proxy-server

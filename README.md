@@ -125,8 +125,9 @@ first-party references.
 ## Containers and Azure deployment
 
 ```bash
-docker build -t supply-chain-api .
-docker build -t supply-chain-web frontend
+podman build --format docker -t localhost/supply-chain-api:local .
+podman build --format docker -t localhost/supply-chain-web:local frontend
+sh scripts/smoke-containers.sh
 ```
 
 The API listens on `8000`. The non-root Nginx web container listens on `8080`;
@@ -135,6 +136,13 @@ set `API_INTERNAL_URL` to the API's internal origin **without a trailing slash**
 path, with buffering disabled and a long read timeout for SSE. User API tokens
 come from Entra through MSAL/PKCE; Maps tokens are brokered server-side.
 No client secret or service key belongs in frontend environment variables.
+
+Podman runs rootlessly without a Docker daemon. The smoke script checks both
+containers and the web-to-API proxy, then removes only its own containers.
+Use `CONTAINER_ENGINE=docker` for the same smoke/proxy tests with Docker.
+Native ARM64 local builds are for local testing, not AMD64 Container Apps.
+Keep the existing ACR remote builds for Azure; see the
+[Podman login/push workflow](docs/deployment.md#podman-on-the-developer-machine).
 
 `azure.yaml` maps services `api` (root) and `web` (`frontend`) to Container Apps.
 Terraform tags apps with `azd-service-name=api|web`, exposes only web publicly,

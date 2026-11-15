@@ -1,11 +1,11 @@
-FROM node:22-alpine AS build
+FROM docker.io/library/node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:stable-alpine
+FROM docker.io/nginxinc/nginx-unprivileged:stable-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 ENV API_INTERNAL_URL=http://api:8000 \

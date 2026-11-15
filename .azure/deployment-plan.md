@@ -1,4 +1,191 @@
-# Selected-route direction deployment
+# Podman container workflow
+
+Status: Deployed and runtime verified
+
+## Current scope
+
+MODIFY the existing container developer workflow for rootless Podman.
+Keep Terraform/azd and ACR remote builds; do not provision resources, change
+permissions/networking, or overwrite unrelated working-tree changes.
+The machine is ARM64 with no AMD64 binfmt handler; native local images must not
+be deployed to AMD64 Azure Container Apps.
+
+Operator-approved target: environment `demo`, subscription
+`0ec6c427-01d3-4462-ae56-fd9656157157` (`jordanbean-demo-subscription`),
+East US 2, resource group `rg-scroute-eus2`, registry `crnjk0ztnkmgrmn`,
+apps `ca-njk0ztnkmgrmn-api` and `ca-njk0ztnkmgrmn-web`.
+
+## Checklist
+
+- [x] Inspect machine tools and existing container/azd configuration.
+- [x] Obtain operator approval for local changes and full Azure verification,
+  including both apps and the current uncommitted source.
+- [x] Implement and verify the Podman developer workflow.
+- [x] Validate secretless Podman ACR login and pushes to `podman-check/api` and
+  `podman-check/web`, tag `podman-check-0f783829-20261113`.
+- [x] Validate the AMD64 remote-build deployment path.
+- [x] Deploy both approved services; confirm latest-ready revisions, entry points
+  and refresh-job image synchronization.
+- [x] Verify Azure endpoint health/auth: explicit app-level starts via Azure CLI
+  REST resolve the stopped state; both ready replicas and live/auth smoke pass.
+
+Durable implementation checklist: `.github/plans/podman-container-workflow.md`.
+No new resources or capacity are planned. ACR Tasks and normal runtime charges
+can apply to an approved deployment. Prior deployment evidence follows unchanged.
+
+## Current validation evidence
+
+Both native ARM64 images build with Podman `--format docker`, retaining image
+health checks. API/web health and proxy/API configuration smoke pass. Both
+upstream cases in the proxy regression pass; five deployment-hook tests pass.
+`uv run ruff check src tests` and `uv run pytest -W error` pass (198 tests).
+Full-repository Ruff reports 25 pre-existing findings in untracked `sample/`
+files; those unrelated sources are unchanged. Existing frontend package audit
+reports ten moderate findings and Vite reports its existing large-chunk advisory.
+
+The initial custom-bridge smoke failed with netavark `No such file or directory`.
+Its exact created container/network were removed. The final script uses working
+rootless slirp4netns/shared network namespaces, with cleanup registered before
+containers are created; no global machine/network configuration was modified.
+Rootless default containers and both proxy cases also run successfully.
+
+Deployment validation scope is service-only: existing azd+Terraform recipe,
+no provisioning, Terraform edits, permissions, networking or resource changes.
+Check selected environment/auth, package configuration, image architecture,
+existing app/registry identities and final revision health. Remote build is
+necessary because this ARM64 host has no AMD64 emulation.
+
+## All validation checks pass
+
+- [x] 1. AZD Installation: installed and runnable.
+- [x] 2. Schema Validation: Azure MCP validates the stable azure.yaml schema.
+- [x] 3. Environment Setup: existing default `demo`.
+- [x] 4. Authentication Check: azd reports authenticated.
+- [x] 5. Subscription/Location Check: operator confirmed existing target.
+- [x] 6. Aspire Pre-Provisioning Checks: not applicable (Python/React).
+- [x] 7. Provision Preview: succeeds; zero additions/destructions, eight existing
+  diagnostic-setting updates only. Preview not applied.
+- [x] 8. Build Verification: both rootless Podman multi-stage builds pass.
+- [x] 9. Docker Build Context Validation: committed uv/npm lockfiles present.
+- [x] 10. Package Validation: `azd package --all --no-prompt` succeeds;
+  no local artifacts expected in remote-build mode.
+- [x] 11. Azure Policy Validation: inherited assignments and current compliance
+  reviewed for this service-only update; no deny/modify violations returned.
+  Existing Defender audit findings remain on ACR/Cosmos and an unrelated Fabric
+  vault; no claim of full resource-group compliance. Existing approved demo tags
+  are preserved, with no new exceptions or networking changes.
+- [x] 12. Aspire Post-Provisioning Checks: not applicable.
+
+## 7. Validation Proof (Podman workflow)
+
+Validation completed 2026-11-13T12:18:54-06:00.
+
+The web build stage explicitly resolves `docker.io/library/node:22-alpine`,
+GA LTS major 22, matching package engines `^22.13.0 || >=24.0.0`.
+Runtime is Nginx (no Node server). The actual TypeScript/Vite container build
+passes; API uses Python 3.12. No service runtime upgrade is required.
+Both pushed ACR images have been pulled back with Podman and their API/web/proxy
+health and API configuration smoke checks pass.
+
+`azd provision --preview --no-prompt` succeeds (23 seconds).
+The plan JSON, read using azd's actual `.azure/demo/infra/.terraform` data dir,
+contains only eight diagnostic-setting updates and no resource additions or
+destructions. No plan is applied. Reading with the unrelated default Terraform
+cache initially failed because it lacked AzureRM 5.14.0; the azd cache resolves
+the inspection without installing/changing providers.
+ACR registry-module review confirms scoped AcrPush for the deployer and AcrPull
+for API/web/refresh managed identities. Live registry pulls and pushes succeed.
+Azure schema validation, azd auth/service discovery, selected target, native
+container builds/smoke, frontend lint/format and 198 warning-free Python tests
+pass. No application or Terraform source changes were made for this workflow.
+
+Predeploy confirms exactly one tagged app per service, one existing Succeeded
+ACA environment, and API/web/refresh scoped AcrPull assignments matching their
+user-assigned registry identities. Existing ACR application images and roles
+are already provisioned; the phase-1 bootstrap provisioning gate is not
+applicable. Use the recipe's application-only deployment; do not apply the
+unrelated diagnostic drift. Subscription/location/environment reuse and full
+deployment were explicitly approved by the operator.
+
+## Deployment and runtime result
+
+Evidence recorded 2026-11-13T12:25:40-06:00.
+`azd deploy --all --environment demo --no-prompt` succeeds in 2m24s without
+Docker. ACR runs `chd` and `che` both report Succeeded, Linux AMD64.
+Latest revision and latest-ready revision match for each service:
+
+- API: `ca-njk0ztnkmgrmn-api--azd-1794594036`,
+  image `supply-chain-routing/api-demo:azd-deploy-1794593962`.
+- Web: `ca-njk0ztnkmgrmn-web--azd-1794594098`,
+  image `supply-chain-routing/web-demo:azd-deploy-1794593961`.
+
+Both use `crnjk0ztnkmgrmn.azurecr.io`. Their application command overrides are
+correct, and the refresh job references exactly the deployed API image with
+`python -m template_repository.refresh`. Registry authentication remains
+user-assigned managed identity with matching scoped AcrPull roles.
+`azd show --output json` confirms the expected endpoints.
+
+**Initial Azure runtime blocker (resolved below):** both apps reported Stopped before this
+task and still report active/Healthy revisions with zero replicas and Stopped
+running state. Public web requests return Azure's platform HTML
+`Error 404 - This Container App is stopped or does not exist`, including for
+`/health/web` and `/health/ready`; authentication smoke cannot proceed.
+DNS resolves to the current environment IP, environment provisioning is
+Succeeded, ingress is external on 8080, and 100% traffic targets the latest
+revision. This is not a successful runtime smoke.
+
+Restarting either exact new revision fails with a platform error saying it is
+deactivated or absent; explicit activation then fails saying it is already
+active. Neither operation changes sizing. A supported CLI app-level start
+command is unavailable. Further retries were stopped rather than claiming that
+deployment success proves runtime success.
+
+Operator approval was requested to temporarily force one minimum replica per
+app and then restore original scaling, but the operator was unavailable.
+Scaling, networking, permissions and Terraform resources were left unchanged.
+Next action requires approval for that bounded scaling diagnostic or Azure
+platform investigation. No subscription-wide configuration was changed.
+
+### Follow-up: app-level start and successful runtime verification
+
+At the operator's request to start both apps through CLI, the documented
+app-level start action was discovered and invoked using Azure CLI:
+
+```sh
+az rest --method post --uri \
+  'https://management.azure.com/subscriptions/0ec6c427-01d3-4462-ae56-fd9656157157/resourceGroups/rg-scroute-eus2/providers/Microsoft.App/containerApps/ca-njk0ztnkmgrmn-api/start?api-version=2025-07-01'
+az rest --method post --uri \
+  'https://management.azure.com/subscriptions/0ec6c427-01d3-4462-ae56-fd9656157157/resourceGroups/rg-scroute-eus2/providers/Microsoft.App/containerApps/ca-njk0ztnkmgrmn-web/start?api-version=2025-07-01'
+```
+
+Both operations succeed. App-level start is distinct from revision activation
+or restart; it is available through REST even though this installed CLI has no
+`az containerapp start` subcommand. Official reference:
+https://learn.microsoft.com/en-us/rest/api/resource-manager/containerapps/container-apps/start?view=rest-resource-manager-containerapps-2025-07-01
+
+Final evidence at 2026-11-13T12:33:28-06:00:
+
+- Both apps report Running, with ready/Running API and web replicas.
+- Public web `/`, `/health/web`, `/health/live`, `/health/ready`: HTTP 200.
+- Proxied dependency readiness: `{"status":"ok","mode":"live"}`.
+- `bash scripts/smoke-auth.sh <web-origin>` passes: Entra discovery/readiness
+  available, anonymous/invalid/spoofed authentication rejected.
+
+Cold startup required retries before health became available. No scale settings,
+images, networking or permissions were changed by these operations. The
+follow-up read found API minimum replicas already set to 1, unlike the earlier
+snapshot; that existing setting was preserved, and no attribution is inferred.
+The originally blocked Azure runtime verification is now complete.
+
+Validation-created lockfile rewrites were removed: `uv.lock` and
+`infra/.terraform.lock.hcl` match their original contents exactly. Final
+`uv run --frozen ruff check src tests`, `uv run --frozen pytest -W error`
+(198 tests), shell syntax, JSON task syntax, and `git diff --check` pass.
+No test/build containers remain. Unrelated existing worktree changes are intact.
+
+---
+
+# Selected-route direction deployment (previous scope)
 
 Status: Deployed
 
