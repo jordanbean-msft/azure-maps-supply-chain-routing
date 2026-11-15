@@ -24,6 +24,41 @@
       "problemMatcher": []
     },
     {
+      "label": "fabric:deploy",
+      "type": "shell",
+      "command": "uv run python -m template_repository.fabric.cli deploy",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "fabric:refresh",
+      "type": "shell",
+      "command": "uv run python -m template_repository.fabric.cli refresh",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "fabric:publish-report",
+      "type": "shell",
+      "command": "uv run python -m template_repository.fabric.cli publish-report",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "fabric:status",
+      "type": "shell",
+      "command": "uv run python -m template_repository.fabric.cli status",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "fabric:test",
+      "type": "shell",
+      "command": "uv run pytest tests/test_fabric.py -W error",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
       "label": "sync-venv",
       "type": "shell",
       "command": "uv sync --extra dev",

@@ -1,0 +1,12 @@
+{
+  "workspace_name": "supply-chain-routing",
+  "workspace_id": "cb3d235a-f6a5-4d88-b29f-aacac1bb8907",
+  "capacity_id": "67635827-844f-41d4-b69f-3a807e03d125",
+  "lakehouse_name": "delivery_carbon",
+  "maps_client_id": "cc860026-0f34-4d46-85e1-41552df6abfb",
+  "key_vault_url": "https://kv-scroute-fabric-rjb.vault.azure.net/",
+  "maps_secret_name": "azure-maps-key",
+  "carbon_price_usd_per_tonne": 100.0,
+  "workbook": "sample/Houston_Delivery_CO2.xlsx",
+  "baseline_csv": "sample/Houston_Delivery_CO2_Live_20261109_1208.csv"
+}

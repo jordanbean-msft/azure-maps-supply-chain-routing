@@ -1,0 +1,16 @@
+{
+  "workspace_id": "cb3d235a-f6a5-4d88-b29f-aacac1bb8907",
+  "lakehouse_id": "6e323a75-0a0c-43ce-9092-2a75622784d5",
+  "model_id": "caa155e4-c9a7-4a47-911e-e6509dc1e1d1",
+  "report_id": "f13c2cce-b1d5-46ea-a912-2c2b60f5b37e",
+  "report_url": "https://app.powerbi.com/groups/cb3d235a-f6a5-4d88-b29f-aacac1bb8907/reports/f13c2cce-b1d5-46ea-a912-2c2b60f5b37e",
+  "summary": {
+    "deliveries": 24,
+    "successful": 24,
+    "route_points": 5836,
+    "road_km": 208.924,
+    "co2_kg": 56.40948,
+    "carbon_cost_usd": 5.640948000000001,
+    "carbon_price_usd_per_tonne": 100.0
+  }
+}

@@ -44,6 +44,13 @@ The scheduled refresh job uses the same deployed backend image.
 [Four editable draw.io views](.img/architecture.drawio) |
 [Diagram previews and editing](docs/diagrams.md)
 
+## Fabric and Power BI delivery carbon analytics
+
+The [Fabric notebook and Power BI report](docs/fabric-delivery-carbon.md) load the
+workbook/CSV samples, refresh actual Azure Maps road distances and paths, and show
+estimated CO2 and configurable illustrative carbon costs. The dedicated Fabric
+workspace uses the existing F2 capacity; running it incurs Azure charges.
+
 ## Local development (no Azure credentials)
 
 Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js 22.13+
