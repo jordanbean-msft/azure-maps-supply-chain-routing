@@ -1,8 +1,8 @@
 ---
-mode: agent
-description: Scaffold a new FastAPI endpoint with schemas, router, service, and tests (TDD-first).
+name: new-api-endpoint
+description: "Scaffold a new FastAPI endpoint with schemas, router, service, and tests (TDD-first)."
+disable-model-invocation: true
 ---
-
 # New API Endpoint
 
 You are scaffolding a new FastAPI endpoint for this project. Follow test-driven development — write tests first, then implement.
