@@ -1,4 +1,9 @@
-# Supply Chain Routing
+---
+title: Supply Chain Routing
+description: Azure Maps supplier-to-factory routing demo with a web application, Excel delivery sample, and Fabric carbon analytics.
+---
+
+## Overview
 
 A supplier-to-factory lane-planning demo built with React/TypeScript,
 Microsoft Fluent UI, FastAPI, Azure Maps, Cosmos DB and Azure Container Apps.
@@ -50,6 +55,11 @@ The [Fabric notebook and Power BI report](docs/fabric-delivery-carbon.md) load t
 workbook/CSV samples, refresh actual Azure Maps road distances and paths, and show
 estimated CO2 and configurable illustrative carbon costs. The dedicated Fabric
 workspace uses the existing F2 capacity; running it incurs Azure charges.
+
+For implementation details, follow the
+[Fabric notebook approach](docs/fabric-notebook-approach.md) or the
+[Excel sample approach](docs/excel-sample-approach.md). The Excel guide also covers
+the standalone Python script and Azure Synapse notebook.
 
 ## Local development (no Azure credentials)
 
@@ -190,6 +200,9 @@ configured OIDC federation and Azure environment inputs.
 - [Azure deployment](docs/deployment.md)
 - [Entra authentication](docs/authentication.md)
 - [Operations, limits, and troubleshooting](docs/operations.md)
+- [Fabric notebook approach](docs/fabric-notebook-approach.md)
+- [Excel sample approach](docs/excel-sample-approach.md)
+- [Fabric deployment and report operations](docs/fabric-delivery-carbon.md)
 - [Implementation checklist](.github/plans/supply-chain-routing-demo.md)
 
 ## License and disclaimer

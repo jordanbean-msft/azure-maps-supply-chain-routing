@@ -1,4 +1,16 @@
-# Fabric delivery distance and carbon analytics
+---
+title: Fabric delivery distance and carbon analytics
+description: Deployment details, refresh commands, authentication, and recorded validation for the Fabric delivery carbon report.
+---
+
+## Approach guides
+
+Use the [detailed Fabric notebook guide](fabric-notebook-approach.md) for input
+contracts, the seven processing stages, API behavior, storage, and publication.
+Use the [Excel sample guide](excel-sample-approach.md) for workbook setup,
+Power Query, worksheet formulas, and the companion Python/Synapse alternatives.
+
+## Report access
 
 [Open the Power BI report](https://app.powerbi.com/groups/cb3d235a-f6a5-4d88-b29f-aacac1bb8907/reports/f13c2cce-b1d5-46ea-a912-2c2b60f5b37e).
 
@@ -139,16 +151,20 @@ replaces the tagged parameters cell, clears execution outputs, and applies the
 target workspace and Lakehouse metadata. If the file is absent, the factory
 generates the original single-call workflow from the local Maps module.
 
-The checked-in notebook exposes separate runnable stages:
+The checked-in notebook exposes seven separate runnable stages:
 
 1. Read and validate deliveries into `validated`, without network requests.
 2. Geocode addresses into `geocoded`, with matched addresses and road-access points.
 3. Request road routes into `routed`, with distance and geometry.
 4. Calculate carbon estimates into `enriched`, without network requests.
-5. Prepare typed data, overwrite the Delta tables, and export routes and totals.
+5. Prepare typed delivery data and an explicit Spark schema.
+6. Overwrite the delivery and ordered route-point Delta tables.
+7. Export GeoJSON routes and the JSON refresh summary.
 
 Run these cells in order. Each stage preserves the earlier snapshots and prints
-status counts. Intermediate successful states are `VALIDATED`, `GEOCODED`, and
+full result rows and available status counts as indented JSON, including geometry
+and route points in later stages. Key-named input columns are excluded; business
+data still appears in notebook output. Intermediate successful states are `VALIDATED`, `GEOCODED`, and
 `ROUTED`; only completed carbon calculations receive `OK`. Errors remain `ERROR`
 and are skipped by later stages. Address and directional-route caches are scoped
 to each network stage run, so rerunning a stage can repeat billable requests.
