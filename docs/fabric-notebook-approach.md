@@ -15,9 +15,8 @@ inspectable processing stages, and repeatable publication. Use the
 [Excel sample approach](excel-sample-approach.md) when you want workbook-based
 review and formula-driven calculations without deploying Fabric.
 
-This pipeline is separate from the React/FastAPI shipment-planning application.
-It does not allocate shipments, optimize factory capacity, or use the
-application's traffic, weather, and disruption cost model.
+This pipeline does not allocate shipments, optimize factory capacity, or model
+traffic, weather, and disruption costs.
 
 For the recorded deployment, report link, resource IDs, and operating commands,
 see [Fabric delivery carbon operations](fabric-delivery-carbon.md).

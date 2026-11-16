@@ -2,25 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "containers:build",
+      "label": "sync-venv",
       "type": "shell",
-      "command": "podman build --format docker -t localhost/supply-chain-api:local . && podman build --format docker -t localhost/supply-chain-web:local frontend",
+      "command": "uv sync --extra dev",
       "group": "build",
       "problemMatcher": []
     },
     {
-      "label": "containers:smoke",
+      "label": "build",
       "type": "shell",
-      "command": "sh scripts/smoke-containers.sh",
-      "dependsOn": "containers:build",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "containers:acr-login",
-      "type": "shell",
-      "command": "DOCKER_COMMAND=podman az acr login --name \"$(azd env get-value AZURE_CONTAINER_REGISTRY)\"",
-      "group": "none",
+      "command": "uv build",
+      "group": { "kind": "build", "isDefault": true },
       "problemMatcher": []
     },
     {
@@ -52,24 +44,38 @@
       "problemMatcher": []
     },
     {
+      "label": "sample:help",
+      "type": "shell",
+      "command": "uv run python sample/houston_delivery_co2.py --help",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
       "label": "fabric:test",
       "type": "shell",
-      "command": "uv run pytest tests/test_fabric.py -W error",
+      "command": "uv run pytest tests/test_fabric.py tests/test_fabric_notebook.py -W error",
       "group": "test",
       "problemMatcher": []
     },
     {
-      "label": "sync-venv",
+      "label": "test",
       "type": "shell",
-      "command": "uv sync --extra dev",
-      "group": "build",
+      "command": "uv run pytest",
+      "group": { "kind": "test", "isDefault": true },
       "problemMatcher": []
     },
     {
-      "label": "build",
+      "label": "test-strict",
       "type": "shell",
-      "command": "uv build",
-      "group": { "kind": "build", "isDefault": true },
+      "command": "uv run pytest -W error",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "coverage",
+      "type": "shell",
+      "command": "uv run pytest --cov --cov-report=xml --cov-report=term-missing",
+      "group": "test",
       "problemMatcher": []
     },
     {
@@ -108,212 +114,8 @@
       "problemMatcher": []
     },
     {
-      "label": "test",
-      "type": "shell",
-      "command": "uv run pytest",
-      "group": { "kind": "test", "isDefault": true },
-      "problemMatcher": []
-    },
-    {
-      "label": "test-strict",
-      "type": "shell",
-      "command": "uv run pytest -W error",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "coverage",
-      "type": "shell",
-      "command": "uv run pytest --cov --cov-report=xml --cov-report=term-missing",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "run-api",
-      "type": "shell",
-      "command": "uv run supply-chain-routing",
-      "group": "none",
-      "isBackground": true,
-      "problemMatcher": {
-        "pattern": { "regexp": "." },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".",
-          "endsPattern": "Uvicorn running on"
-        }
-      }
-    },
-    {
       "label": "validate",
       "dependsOn": ["lint", "format-check", "type-check", "test-strict"],
-      "dependsOrder": "sequence",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:setup",
-      "type": "shell",
-      "command": "npm ci",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:dev",
-      "dependsOn": "frontend:setup",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "isBackground": true,
-      "group": "none",
-      "problemMatcher": {
-        "pattern": { "regexp": "." },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".",
-          "endsPattern": "Local:.*5173"
-        }
-      }
-    },
-    {
-      "label": "frontend:build",
-      "type": "shell",
-      "command": "npm run build",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:test",
-      "type": "shell",
-      "command": "npm test",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:lint",
-      "type": "shell",
-      "command": "npm run lint",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:e2e",
-      "type": "shell",
-      "command": "npm run test:e2e",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "api:smoke",
-      "type": "shell",
-      "command": "bash scripts/smoke-api.sh http://127.0.0.1:8000",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "auth:smoke",
-      "type": "shell",
-      "command": "bash scripts/smoke-auth.sh \"$(azd env get-value SERVICE_WEB_URI)\"",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "run-refresh",
-      "type": "shell",
-      "command": "uv run python -m template_repository.refresh",
-      "group": "none",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:format",
-      "type": "shell",
-      "command": "npm run format",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "none",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:format-check",
-      "type": "shell",
-      "command": "npm run format:check",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:type-check",
-      "type": "shell",
-      "command": "npm run typecheck",
-      "options": { "cwd": "${workspaceFolder}/frontend" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:init",
-      "type": "shell",
-      "command": "terraform -chdir=infra init -backend=false",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:fmt",
-      "type": "shell",
-      "command": "terraform -chdir=infra fmt -check -recursive",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:format",
-      "type": "shell",
-      "command": "terraform -chdir=infra fmt -recursive",
-      "group": "none",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:validate",
-      "type": "shell",
-      "command": "terraform -chdir=infra validate",
-      "dependsOn": "infra:init",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:tflint",
-      "type": "shell",
-      "command": "tflint --recursive",
-      "options": { "cwd": "${workspaceFolder}/infra" },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:test",
-      "type": "shell",
-      "command": "terraform -chdir=infra test",
-      "dependsOn": "infra:init",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:hook-test",
-      "type": "shell",
-      "command": "sh infra/tests/deploy-refresh.test.sh",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "frontend:proxy-test",
-      "type": "shell",
-      "command": "sh infra/tests/nginx-proxy.test.sh",
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "infra:lint",
-      "dependsOn": ["infra:fmt", "infra:validate", "infra:tflint"],
       "dependsOrder": "sequence",
       "group": "build",
       "problemMatcher": []
@@ -322,45 +124,14 @@
       "label": "pre-commit-install",
       "type": "shell",
       "command": "uv run pre-commit install && uv run pre-commit install --hook-type pre-push",
+      "group": "none",
       "problemMatcher": []
     },
     {
       "label": "az-login",
       "type": "shell",
       "command": "az login",
-      "problemMatcher": []
-    },
-    {
-      "label": "azd-up",
-      "type": "shell",
-      "command": "azd up",
-      "problemMatcher": []
-    },
-    {
-      "label": "azd-deploy",
-      "type": "shell",
-      "command": "azd deploy",
-      "problemMatcher": []
-    },
-    {
-      "label": "pentest:bandit",
-      "type": "shell",
-      "command": "uv run bandit -r src/",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "pentest:pip-audit",
-      "type": "shell",
-      "command": "uv run pip-audit",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "pentest",
-      "dependsOn": ["pentest:bandit", "pentest:pip-audit"],
-      "dependsOrder": "sequence",
-      "group": "build",
+      "group": "none",
       "problemMatcher": []
     }
   ]

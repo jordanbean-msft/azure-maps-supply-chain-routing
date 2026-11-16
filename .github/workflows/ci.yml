@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   python:
-    name: Python
+    name: Fabric tooling and notebook
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,87 +32,5 @@ jobs:
       - run: uv run mypy src/
       - run: uv run pytest -W error --cov --cov-report=xml --cov-report=term-missing
       - run: uv build
-
-  frontend:
-    name: React
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-
-  terraform:
-    name: Terraform
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.14.0"
-      - run: terraform -chdir=infra fmt -check -recursive
-      - run: terraform -chdir=infra init -backend=false -input=false
-      - name: Validate without errors or warnings
-        run: |
-          terraform -chdir=infra validate -json > "$RUNNER_TEMP/terraform-validation.json"
-          jq -e '.valid and .error_count == 0 and .warning_count == 0' \
-            "$RUNNER_TEMP/terraform-validation.json"
-      - run: terraform -chdir=infra test
-      - run: sh infra/tests/deploy-refresh.test.sh
-      - run: bash -n scripts/smoke-api.sh scripts/smoke-auth.sh
-
-  containers:
-    name: Container builds
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: CONTAINER_ENGINE=docker sh infra/tests/nginx-proxy.test.sh
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: supply-chain-api:ci
-      - uses: docker/build-push-action@v6
-        with:
-          context: frontend
-          push: false
-          tags: supply-chain-web:ci
-
-  browser:
-    name: Browser integration
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version-file: .python-version
-      - uses: astral-sh/setup-uv@v8.0.0
-        with:
-          enable-cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: uv sync --frozen --extra dev
-      - run: npm --prefix frontend ci
-      - run: npx --prefix frontend playwright install --with-deps chromium
-      - run: npm --prefix frontend run test:e2e
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-results
-          path: frontend/test-results/
-          retention-days: 7
+      - run: uv run python -m template_repository.fabric.cli --help
+      - run: uv run python sample/houston_delivery_co2.py --help

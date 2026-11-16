@@ -33,8 +33,7 @@
       "**/*.egg-info": true,
       "**/.mypy_cache": true,
       ".venv": true
-    },
-    "azureTerraform.checkTerraformCmd": false
+    }
   },
   "extensions": {
     "recommendations": [
@@ -45,14 +44,8 @@
       "charliermarsh.ruff",
       "github.copilot",
       "github.copilot-chat",
-      "hashicorp.terraform",
-      "ms-azuretools.azure-dev",
-      "humao.rest-client",
       "ms-toolsai.jupyter",
-      "ryanluker.vscode-coverage-gutters",
-      "hediet.vscode-drawio",
-      "dbaeumer.vscode-eslint",
-      "esbenp.prettier-vscode"
+      "ryanluker.vscode-coverage-gutters"
     ]
   }
 }

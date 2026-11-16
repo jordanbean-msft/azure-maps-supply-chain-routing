@@ -24,27 +24,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: terraform-fmt
-        name: terraform fmt (infrastructure)
-        entry: bash -c 'cd infra && terraform fmt -check -recursive .'
-        language: system
-        pass_filenames: false
-        files: ^infra/.*\.tf$
-
-      - id: terraform-validate
-        name: terraform validate (infrastructure)
-        entry: bash -c 'cd infra && terraform validate'
-        language: system
-        pass_filenames: false
-        files: ^infra/.*\.tf$
-
-      - id: tflint
-        name: tflint (infrastructure)
-        entry: bash -c 'cd infra && tflint --recursive'
-        language: system
-        pass_filenames: false
-        files: ^infra/.*\.tf$
-
       - id: pytest
         name: pytest
         entry: uv run pytest -W error

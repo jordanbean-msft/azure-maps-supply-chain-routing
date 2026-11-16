@@ -1,211 +1,99 @@
 ---
-title: Supply Chain Routing
-description: Azure Maps supplier-to-factory routing demo with a web application, Excel delivery sample, and Fabric carbon analytics.
+title: Delivery distance and carbon analytics
+description: Excel delivery samples, Azure Maps enrichment, and Microsoft Fabric notebook and Power BI setup.
 ---
 
-## Overview
+# Delivery distance and carbon analytics
 
-A supplier-to-factory lane-planning demo built with React/TypeScript,
-Microsoft Fluent UI, FastAPI, Azure Maps, Cosmos DB and Azure Container Apps.
+Use Azure Maps road distances to estimate vehicle-trip CO2 in Excel or Microsoft
+Fabric. This repository contains the Houston workbook and companion CSV,
+Python/Synapse samples, a staged Fabric notebook, and the setup code for a
+Lakehouse, Direct Lake semantic model, and Power BI report.
 
-Define suppliers and factories, compare alternative road lanes, allocate
-shipment units within factory capacity, and explore estimated costs under
-traffic, weather, and simulated disruptions.
+The original React/FastAPI web application, its infrastructure, and its
+documentation are preserved on
+[`archive/web-app-before-fabric-only`](https://github.com/jordanbean-msft/azure-maps-supply-chain-routing/tree/archive/web-app-before-fabric-only).
+They are not part of `main`. Removing their source does not delete deployed
+Azure resources or stop their charges.
 
-The local demo requires no Azure credentials. Live mode uses Azure Maps and
-Cosmos DB with managed identities. Azure deployments require Microsoft Entra
-sign-in; the local demo explicitly disables user authentication.
-This is a demonstration, not a dispatch system, carrier quotation engine,
-or production supply-chain optimizer. Use synthetic data only: signed-in
-tenant users share scenarios, with no per-user ownership boundary.
+## Excel sample
 
-## What you can demonstrate
+Open [`sample/Houston_Delivery_CO2.xlsx`](sample/Houston_Delivery_CO2.xlsx) in
+desktop Excel for Windows. Follow the
+[Excel sample guide](docs/excel-sample-approach.md) for Power Query setup,
+Azure Maps authentication, worksheet formulas, and the standalone Python and
+Synapse alternatives. The supplied CSV is a reference snapshot, not live data.
 
-- Start with editable Houston-area suppliers and factories; geocode addresses,
-  drag live map markers, and set supply, receiving capacity and truck assumptions.
-- **Calculate shipment plan** minimizes total estimated shipment cost while
-  assigning all supplier supply within factory capacity. Compare traffic-inclusive
-  travel times, route-weather estimates and the eight-part cost breakdown.
-- Recommended shipments are blue with quantities; inspection is purple and
-  disruption previews are magenta. Unused alternatives are hidden by default.
-  Inspecting a route does not reallocate shipments. A selected-route arrow and
-  START/END labels show supplier-to-factory direction, not live vehicle tracking;
-  reduced-motion and manual static modes are supported.
-- Explore closures, facility delays, fuel changes and weather assumptions,
-  then recalculate. See persisted run progress through authenticated SSE and a
-  polling watchdog. Microsoft sign-in supports conditional return-session SSO
-  and an optional **Howdy First Last!** profile/photo header.
+Use synthetic data only. Never commit Maps keys or credential-bearing workbook
+copies. Route distances are measured road distances; CO2 factors and carbon
+prices are configurable assumptions, not Azure Maps emissions measurements.
+These samples do not optimize shipments or provide commercial-truck routing.
 
-## Architecture
+## Fabric notebook and report
 
-![Supply Chain Routing runtime architecture](.img/runtime.svg)
+Read the [Fabric notebook guide](docs/fabric-notebook-approach.md) for input
+contracts and the seven runnable stages. See
+[Fabric setup and operations](docs/fabric-delivery-carbon.md) for permissions,
+configuration, the report link, refresh behavior, and recorded deployment details.
 
-The public Nginx web app proxies same-origin API/SSE requests to an internal
-FastAPI Container App. Backend and refresh identities access Maps/Cosmos;
-a separate least-privilege identity authorizes browser map/traffic tiles.
-The scheduled refresh job uses the same deployed backend image.
-
-[Architecture and cost model](ARCHITECTURE.md) |
-[Four editable draw.io views](.img/architecture.drawio) |
-[Diagram previews and editing](docs/diagrams.md)
-
-## Fabric and Power BI delivery carbon analytics
-
-The [Fabric notebook and Power BI report](docs/fabric-delivery-carbon.md) load the
-workbook/CSV samples, refresh actual Azure Maps road distances and paths, and show
-estimated CO2 and configurable illustrative carbon costs. The dedicated Fabric
-workspace uses the existing F2 capacity; running it incurs Azure charges.
-
-For implementation details, follow the
-[Fabric notebook approach](docs/fabric-notebook-approach.md) or the
-[Excel sample approach](docs/excel-sample-approach.md). The Excel guide also covers
-the standalone Python script and Azure Synapse notebook.
-
-## Local development (no Azure credentials)
-
-Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js 22.13+
-(22 LTS or 24 LTS recommended), and npm.
+Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), Azure CLI, a Fabric
+workspace on active capacity, and the documented Maps/Key Vault and workspace
+permissions. Review `fabric/config.json` before running commands that update
+cloud resources and incur charges.
 
 ```bash
 uv sync --extra dev
-cp .env.example .env
-npm --prefix frontend ci
-uv run supply-chain-routing
+az login
+uv run python -m template_repository.fabric.cli deploy
+uv run python -m template_repository.fabric.cli status
 ```
 
-In another terminal:
+`deploy` uploads sanitized sample inputs and runs enrichment. For existing inputs,
+use `refresh`; use `publish-report` to update the model/report without repeating
+Maps requests:
 
 ```bash
-npm --prefix frontend run dev
+uv run python -m template_repository.fabric.cli refresh
+uv run python -m template_repository.fabric.cli publish-report
 ```
 
-Open http://localhost:5173 and choose **Load Houston sample**.
-Vite proxies `/api` to http://localhost:8000.
-`APP_MODE=demo` explicitly selects simulated routing and in-memory persistence;
-restarting the API clears local scenarios. No live traffic, weather, or road
-basemap is claimed in this mode. `APP_MODE=live` requires configured Azure
-services and never silently falls back to simulation. Follow the
-[demo walkthrough](docs/local-development.md#demo-walkthrough) for saving,
-planning, inspecting and disrupting routes.
+## Repository layout
 
-## API and repository layout
+| Path | Contents |
+| --- | --- |
+| `sample/` | Excel workbook, reference CSV, standalone Python script, Synapse notebook |
+| `fabric/` | Nonsecret setup configuration, Fabric notebook, semantic model/report definitions, deployment receipt |
+| `src/template_repository/fabric/` | Fabric setup, publication, sample normalization, and Maps enrichment helpers |
+| `tests/` | Offline Fabric and notebook tests with mocked cloud services |
+| `docs/` | Excel, notebook, and Fabric operations guides |
+| `.vscode/` | Setup, build, validation, Fabric operations, and debugger configurations |
 
-- `GET /health` and `/health/live`: process liveness.
-- `GET /health/ready`: dependency readiness.
-- `GET /api/auth/config`: public, nonsecret sign-in configuration.
-- `GET /api/config`: mode, routing/map availability and scenario limits.
-- `GET /api/maps/token`: short-lived live map authorization; unavailable in demo.
-- Scenario CRUD, geocoding, optimization runs, route details, disruptions, and
-  progress events are under `/api/scenarios`.
-- API docs: http://localhost:8000/docs.
+The Python namespace remains `template_repository` so existing Fabric commands
+and documentation continue to work. There is no web server entry point.
+Azure integrations use Microsoft-maintained SDKs. HTTPX provides the existing
+async REST transport; Microsoft does not publish an equivalent general-purpose
+Python async HTTP client.
 
-Python imports remain `template_repository` and `uv run template-repository`
-remains an alias for compatibility. Logs are JSON lines on stdout, configured at
-startup without creating log files. Reload is enabled only with
-`AZURE_ENVIRONMENT=development`; containers set it to `production`.
-
-## Contracts and validation
-
-Python wire models live in `src/template_repository/models/`; matching
-TypeScript interfaces live in `frontend/src/types.ts`. JSON uses `snake_case`,
-coordinates are `[longitude, latitude]`, quantities are supplier supply/factory
-capacity, and timestamps include a timezone.
+## Development and validation
 
 ```bash
+uv sync --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src/
 uv run pytest -W error
 uv build
-npm --prefix frontend run lint
-npm --prefix frontend run typecheck
-npm --prefix frontend test
-npm --prefix frontend run build
-npm --prefix frontend run format:check
 ```
 
-Use `uv run ruff format .` and `npm --prefix frontend run format` to format.
-Repository-scoped VS Code tasks/debuggers in `.vscode/` cover setup, running,
-packaging, tests, lint, formatting, types and infrastructure validation. The
-existing `.code-workspace` delegates to these rather than duplicating tasks.
-
-React/Vite and its test/lint toolchain are ecosystem dependencies; Microsoft does
-not publish equivalent React build/testing tooling. The
-optimizer uses OR-Tools because no suitable Microsoft-maintained Python
-constrained-network solver exists. Azure integrations use Microsoft-maintained
-identity/Cosmos libraries, and the map uses Microsoft's Azure Maps Web SDK.
-Browser sign-in uses Microsoft's MSAL. PyJWT validates API token signatures
-because MSAL acquires tokens but does not validate inbound API bearer tokens.
-See [routing research](docs/routing-research.md) for algorithm tradeoffs and
-first-party references.
-
-## Containers and Azure deployment
-
-```bash
-podman build --format docker -t localhost/supply-chain-api:local .
-podman build --format docker -t localhost/supply-chain-web:local frontend
-sh scripts/smoke-containers.sh
-```
-
-The API listens on `8000`. The non-root Nginx web container listens on `8080`;
-set `API_INTERNAL_URL` to the API's internal origin **without a trailing slash**
-(default `http://api:8000`). It proxies `/api/` and `/health` without stripping the
-path, with buffering disabled and a long read timeout for SSE. User API tokens
-come from Entra through MSAL/PKCE; Maps tokens are brokered server-side.
-No client secret or service key belongs in frontend environment variables.
-
-Podman runs rootlessly without a Docker daemon. The smoke script checks both
-containers and the web-to-API proxy, then removes only its own containers.
-Use `CONTAINER_ENGINE=docker` for the same smoke/proxy tests with Docker.
-Native ARM64 local builds are for local testing, not AMD64 Container Apps.
-Keep the existing ACR remote builds for Azure; see the
-[Podman login/push workflow](docs/deployment.md#podman-on-the-developer-machine).
-
-`azure.yaml` maps services `api` (root) and `web` (`frontend`) to Container Apps.
-Terraform tags apps with `azd-service-name=api|web`, exposes only web publicly,
-configures workload identities/roles, and provisions Cosmos with `/scenario_id`
-as partition key. Azure CLI, azd, Terraform, a pre-created resource group, and
-remote-state storage are required for Azure deployment.
-
-Read [deployment prerequisites](docs/deployment.md) before provisioning. Private
-deployments use existing networking and policy-managed DNS. Public demo
-ingress is protected by single-tenant Entra API authentication. The currently
-deployed [Azure demo](https://ca-njk0ztnkmgrmn-web.icyflower-2a21f8a0.eastus2.azurecontainerapps.io/)
-requires an account in the configured tenant and any required consent.
-See [authentication and remembered sign-in](docs/authentication.md).
-The approved `SecurityControl=Ignore` demo exception is not production guidance.
-
-Infrastructure validation (after reviewing existing instructions):
-
-```bash
-terraform -chdir=infra fmt -check -recursive
-terraform -chdir=infra init -backend=false
-terraform -chdir=infra validate
-```
-
-`azd provision` prepares resources; `azd deploy` builds/deploys images and
-synchronizes the refresh job. Wait for latest-ready revisions before smoke
-tests. GitHub CI checks Python, React, Terraform, containers and Chromium on
-push/PR; deployment workflows are separate, manually dispatched and require
-configured OIDC federation and Azure environment inputs.
-
-## Documentation
-
-- [Architecture and cost model](ARCHITECTURE.md)
-- [draw.io diagram catalogue](docs/diagrams.md)
-- [Deployed Azure resource inventory](docs/rg-scroute-eus2-architecture.md)
-- [Routing/optimization research](docs/routing-research.md)
-- [Local development and walkthrough](docs/local-development.md)
-- [Configuration](docs/configuration-reference.md)
-- [Azure deployment](docs/deployment.md)
-- [Entra authentication](docs/authentication.md)
-- [Operations, limits, and troubleshooting](docs/operations.md)
-- [Fabric notebook approach](docs/fabric-notebook-approach.md)
-- [Excel sample approach](docs/excel-sample-approach.md)
-- [Fabric deployment and report operations](docs/fabric-delivery-carbon.md)
-- [Implementation checklist](.github/plans/supply-chain-routing-demo.md)
+The original standalone script and Synapse notebook in `sample/` are retained
+unchanged and excluded from Ruff checks; the Fabric implementation, tests, and
+Fabric notebook are checked. Tests require no Azure credentials or live services.
+Use `uv run ruff format .` to format maintained code.
+Coverage remains available through `uv run pytest --cov`; the former web app's
+aggregate 70% coverage gate no longer applies to this reduced repository.
 
 ## License and disclaimer
 
 See [LICENSE](LICENSE). This demonstration is provided as-is, without warranty;
-route, weather, traffic and cost estimates are not logistics guarantees.
+route, emissions, and illustrative carbon-cost estimates are not logistics
+guarantees or certified emissions results.

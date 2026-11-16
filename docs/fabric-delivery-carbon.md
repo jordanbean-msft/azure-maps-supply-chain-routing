@@ -98,8 +98,8 @@ the tested runtime. With explicit approval, the notebook instead reads
 The secret was transferred directly from the existing key-enabled local Maps
 account to Key Vault in process memory, without printing or saving its value.
 The production Maps account remains key-disabled. The new vault uses Azure RBAC
-and purge protection, and was provisioned via CLI, separately from the existing
-Terraform deployment.
+and purge protection, and was provisioned via Azure CLI. The web application's
+Terraform deployment is archived on `archive/web-app-before-fabric-only`.
 
 The executing user needs secret-read permission on that vault. The initial
 provisioning user was granted vault-scoped `Key Vault Secrets Officer` to set and
@@ -182,13 +182,13 @@ and a Fabric deployment debugger configuration.
 
 ```bash
 uv run pytest tests/test_fabric.py tests/test_fabric_notebook.py -W error
-uv run ruff check src/ tests/ fabric/notebooks/
-uv run ruff format --check src/template_repository/fabric tests/test_fabric.py
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy src/
 ```
 
-The original unmodified scripts/notebook under `sample/` have existing lint
-violations and are not rewritten by this implementation.
+The original unmodified script/notebook under `sample/` have existing lint
+violations and are excluded from Ruff checks.
 
 Live validation on November 9, 2026 produced 24 successful deliveries, 5,868 road
 points, 213.35 road km, 57.6045 kg estimated CO2, and USD 5.76045 illustrative cost.

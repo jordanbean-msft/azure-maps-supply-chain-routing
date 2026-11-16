@@ -2,12 +2,8 @@
 **/bin/
 **/obj/
 **/dist/
-**/*.dll
-**/*.exe
-**/*.pdb
 
 # Dependencies
-**/node_modules/
 **/.venv/
 **/__pycache__/
 **/*.egg-info/
@@ -28,21 +24,10 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
-**/appsettings.Development.json
 .azure/
-
-# Terraform
-.terraform/
-**/*.tfstate
-**/*.tfstate.*
-**/*.tfplan
-infra/.terraform.lock.hcl
 
 # Logs
 **/*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Test coverage
 htmlcov/
@@ -50,7 +35,6 @@ htmlcov/
 .coverage.*
 coverage.xml
 **/coverage/
-**/.nyc_output/
 
 # Temp files
 **/tmp/
@@ -64,4 +48,3 @@ coverage.xml
 
 # Lock files (large, not useful for suggestions)
 uv.lock
-package-lock.json

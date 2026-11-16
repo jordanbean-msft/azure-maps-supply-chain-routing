@@ -7,11 +7,7 @@
     "charliermarsh.ruff",
     "github.copilot",
     "github.copilot-chat",
-    "hashicorp.terraform",
-    "ms-azuretools.azure-dev",
-    "humao.rest-client",
     "ms-toolsai.jupyter",
-    "ryanluker.vscode-coverage-gutters",
-    "hediet.vscode-drawio"
+    "ryanluker.vscode-coverage-gutters"
   ]
 }

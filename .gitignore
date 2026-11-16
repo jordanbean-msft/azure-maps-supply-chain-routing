@@ -11,7 +11,6 @@ build/
 
 # Environment files (never commit real secrets)
 .env
-!.env.example
 
 # Testing and coverage
 .pytest_cache/
@@ -33,25 +32,18 @@ coverage.xml
 # Runtime logs
 *.log
 
-# Azure Developer CLI
+# Local Azure state from the archived application
 .azure/
-!.azure/
-.azure/*
-!.azure/deployment-plan.md
 
-# Node.js (if frontend added later)
+# Local dependencies and outputs from the archived application
 node_modules/
 frontend/coverage/
+frontend/
+infra/
 .cache/
 
-# Terraform
-infra/.terraform/
-infra/*.tfstate
-infra/*.tfstate.backup
-infra/.terraform.lock.hcl
-infra/provider.conf.json
-infra/terraform.local.tfvars.json
-infra/backend.local.hcl
+# Download security metadata (not workbook content)
+*:sec.endpointdlp
 
 # IDE
 .idea/

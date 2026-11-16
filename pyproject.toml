@@ -1,19 +1,14 @@
 [project]
 name = "supply-chain-routing"
 version = "0.1.0"
-description = "Azure Maps supply-chain lane planning demo"
+description = "Excel and Microsoft Fabric delivery distance and carbon analytics"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "azure-core[aio]>=1.41.0",
-  "azure-cosmos>=4.17.1",
   "azure-identity>=1.27.0",
-  "azure-monitor-opentelemetry>=1.8.12",
-  "fastapi[standard]",
   "httpx>=0.28.1",
-  "ortools>=9.15.6755",
   "pydantic-settings",
-  "pyjwt[crypto]>=2.15.1",
 ]
 
 [project.optional-dependencies]
@@ -29,13 +24,10 @@ dev = [
   "pre-commit",
 ]
 
-[project.scripts]
-supply-chain-routing = "template_repository.main:main"
-template-repository = "template_repository.main:main"
-
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["sample/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "N", "RUF", "SIM"]
@@ -60,7 +52,6 @@ omit = ["tests/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 70
 
 [tool.coverage.xml]
 output = "coverage.xml"

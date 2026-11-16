@@ -16,8 +16,7 @@ The [Fabric notebook approach](fabric-notebook-approach.md) adds staged
 inspection, road-path storage, a Lakehouse, centralized carbon pricing, and a
 published Power BI report.
 
-Neither approach is the web application's shipment optimizer. The workbook
-does not allocate quantities across plants, calculate carrier quotes, apply
+The workbook does not allocate quantities across plants, calculate carrier quotes, apply
 truck restrictions, or model weather and disruptions.
 
 ## Sample assets and their roles
